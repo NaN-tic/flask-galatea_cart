@@ -489,6 +489,10 @@ def add(lang):
             )
     lines = SaleLine.search(domain)
 
+    party = None
+    if session.get('customer'):
+        party = Party(session.get('customer'))
+
     # Products Current Cart (products available in sale.cart)
     products_in_cart = [l.product.id for l in lines]
 
@@ -535,32 +539,37 @@ def add(lang):
                     product=product.rec_name, quantity=quantity), 'danger')
                 continue
 
-        line = SaleLine()
-        defaults = line.default_get(line._fields.keys(), with_rec_name=False)
-        for key in defaults:
-            setattr(line, key, defaults[key])
-        line.party = session.get('customer', None)
-        line.quantity = qty
-        line.product = product.id
-        line.sid = session.sid
-        line.shop = SHOP
-        line.galatea_user = session.get('user', None)
-        line.on_change_product()
+        context = {}
+        context['customer'] = session.get('customer', None)
+        if party and getattr(party, 'sale_price_list'):
+            context['price_list'] = party.sale_price_list.id if party.sale_price_list else None
+        with Transaction().set_context(context):
+            line = SaleLine()
+            defaults = line.default_get(line._fields.keys(), with_rec_name=False)
+            for key in defaults:
+                setattr(line, key, defaults[key])
+            line.party = session.get('customer', None)
+            line.quantity = qty
+            line.product = product.id
+            line.sid = session.sid
+            line.shop = SHOP
+            line.galatea_user = session.get('user', None)
+            line.on_change_product()
 
-        # Create data
-        if product_id not in products_in_cart and qty > 0:
-            to_create.append(line._save_values)
-        # Update data
-        if product_id in products_in_cart: 
-            for line in lines:
-                if line.product.id == product_id:
-                    if qty > 0:
-                        line.quantity = qty
-                        line.on_change_quantity()
-                        to_update.extend(([line], line._save_values))
-                    else: # Remove data when qty <= 0
-                        to_remove.append(line)
-                    break
+            # Create data
+            if product_id not in products_in_cart and qty > 0:
+                to_create.append(line._save_values)
+            # Update data
+            if product_id in products_in_cart: 
+                for line in lines:
+                    if line.product.id == product_id:
+                        if qty > 0:
+                            line.quantity = qty
+                            line.on_change_quantity()
+                            to_update.extend(([line], line._save_values))
+                        else: # Remove data when qty <= 0
+                            to_remove.append(line)
+                        break
 
     # Add to remove older products
     if to_remove_products:
