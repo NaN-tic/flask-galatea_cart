@@ -339,27 +339,29 @@ def confirm(lang):
         shipment_address = Address.esale_create_address(
             shop, party, values, type='delivery')
 
-    # Create new sale
-    values = {}
-    values['esale'] = True
-    values['shipment_cost_method'] = 'order' # force shipment invoice on order
-    if invoice_address:
-        values['invoice_address'] = invoice_address
+    sale = Sale.get_sale_data(party)
 
-    values['shipment_address'] = shipment_address
+    # Create new sale
+    sale.esale = True
+    sale.shipment_cost_method = 'order' # force shipment invoice on order
+    if invoice_address:
+        sale.invoice_address = invoice_address
+    sale.shipment_address = shipment_address
     payment_type = data.get('payment_type')
     if payment_type:
-        values['payment_type'] = int(payment_type)
+        sale.payment_type = int(payment_type)
     carrier = data.get('carrier')
     if carrier:
-        values['carrier'] = int(carrier)
+        sale.carrier = int(carrier)
     comment = data.get('comment')
     if comment:
-        values['comment'] = comment
+        sale.comment = comment
+    if hasattr(sale, 'shipment_comment'):
+        shipment_comment = data.get('shipment_comment')
+        if shipment_comment:
+            sale.shipment_comment = shipment_comment
     if session.get('user'): # login user
-        values['galatea_user'] = session['user']
-
-    sale = Sale.get_sale_data(party)
+        sale.galatea_user = session['user']
 
     # Add shipment line
     carrier_price = data.get('carrier-cost')
