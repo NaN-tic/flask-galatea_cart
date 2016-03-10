@@ -463,7 +463,7 @@ def add(lang):
         for k, v in vals.items():
             for prod in products:
                 if prod.code == k:
-                    values[prod['id']] = v
+                    values[prod.id] = v
                     break
 
     # Remove items in cart
