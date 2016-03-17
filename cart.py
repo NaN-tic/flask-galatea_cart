@@ -43,6 +43,7 @@ PRODUCT_TYPE_STOCK = ['goods', 'assets']
 @tryton.transaction()
 def carriers(lang):
     '''Return all carriers (JSON)'''
+    address = request.args.get('address', None)
     zip = request.args.get('zip', None)
     untaxed = request.args.get('untaxed', None)
     tax = request.args.get('tax', None)
@@ -61,10 +62,21 @@ def carriers(lang):
         payment=int(payment) if payment else None,
         )
 
-    if zip:
+    if address or zip:
+        if address and customer:
+            addresses = Address.search([
+                ('party', '=', customer),
+                ('id', '=', address),
+                ], limit=1)
+            if addresses:
+                zip = addresses[0].zip
+
         zip_carriers = Carrier.get_carriers_from_zip(zip, carriers=carriers)
-        for z in zip_carriers:
-            carriers.remove(z)
+        new_carriers = []
+        for c in carriers:
+            if c in zip_carriers:
+                new_carriers.append(c)
+        carriers = new_carriers
 
     carriers = sorted(carriers, key=lambda k: k.price)
 
