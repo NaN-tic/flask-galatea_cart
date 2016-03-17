@@ -350,7 +350,6 @@ def confirm(lang):
     try:
         sale.pre_validate()
         sale.save()
-        print sale.id
     except Exception as e:
         current_app.logger.info(e)
         flash(_('We found some errors when confirm your sale.' \
