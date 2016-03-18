@@ -272,6 +272,8 @@ def confirm(lang):
     if shipment_address:
         if request.form.get('shipment_id'):
             shipment_address = Address(request.form.get('shipment_id'))
+        elif shipment_address == 'invoice-address':
+            shipment_address = invoice_address
         else:
             name = data.get('shipment_name')
             street = data.get('shipment_street')
