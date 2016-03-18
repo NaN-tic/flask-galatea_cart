@@ -79,12 +79,13 @@ def carriers(lang):
         carriers = new_carriers
 
     carriers = sorted(carriers, key=lambda k: k.price)
+    decimals = "%0."+str(shop.esale_currency.digits)+"f" # "%0.2f" euro
 
     return jsonify(result=[{
         'id': carrier.id,
         'name': carrier.rec_name,
-        'price': carrier.price,
-        'price_w_tax': carrier.price_w_tax,
+        'price':  float(Decimal(decimals % carrier.price)),
+        'price_w_tax': float(Decimal(decimals % carrier.price_w_tax)),
         } for carrier in carriers])
 
 @cart.route('/json/my-cart', methods=['GET', 'PUT'], endpoint="my-cart")
