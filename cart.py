@@ -20,6 +20,7 @@ DELIVERY_INVOICE_ADDRESS = current_app.config.get('TRYTON_SALE_DELIVERY_INVOICE_
 CART_CROSSSELLS = current_app.config.get('TRYTON_CART_CROSSSELLS', True)
 LIMIT_CROSSELLS = current_app.config.get('TRYTON_CATALOG_LIMIT_CROSSSELLS', 10)
 MINI_CART_CODE = current_app.config.get('TRYTON_CATALOG_MINI_CART_CODE', False)
+SALE_KIT = current_app.config.get('TRYTON_SALE_KIT', False)
 
 Date = tryton.pool.get('ir.date')
 Website = tryton.pool.get('galatea.website')
@@ -346,6 +347,14 @@ def confirm(lang):
     if session.get('user'): # login user
         sale.galatea_user = session['user']
 
+    # explode sale kit
+    if SALE_KIT:
+        to_explode = [line for line in lines if line.product.kit and line.product.explode_kit_in_sales]
+        if to_explode:
+            kit_lines = SaleLine.explode_kit(to_explode)
+            if kit_lines:
+                lines.extend(kit_lines)
+
     # Add lines to sale
     sale.lines = lines
 
@@ -570,7 +579,9 @@ def add(lang):
 
     # Add Cart
     if to_create:
-        SaleLine.create(to_create)
+        # compatibility sale kit
+        with Transaction().set_context(explode_kit=False):
+            SaleLine.create(to_create)
         flash(ngettext(
             '%(num)s product has been added in your cart.',
             '%(num)s products have been added in your cart.',
@@ -578,7 +589,9 @@ def add(lang):
 
     # Update Cart
     if to_update:
-        SaleLine.write(*to_update)
+        # compatibility sale kit
+        with Transaction().set_context(explode_kit=False):
+            SaleLine.write(*to_update)
         total = len(to_update)/2
         if to_remove:
             total = total-len(to_remove)
