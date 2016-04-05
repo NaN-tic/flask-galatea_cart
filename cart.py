@@ -386,8 +386,7 @@ def confirm(lang):
     except Exception as e:
         current_app.logger.info(e)
         flash(_('We found some errors when quote your sale.' \
-            'Try again or contact us.'), 'danger')
-        return redirect(url_for('.cart', lang=g.language))
+            'Contact Us.'), 'danger')
 
     if current_app.debug:
         current_app.logger.info('Sale. Create sale %s' % sale.id)
