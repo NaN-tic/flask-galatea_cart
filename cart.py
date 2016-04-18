@@ -21,6 +21,7 @@ CART_CROSSSELLS = current_app.config.get('TRYTON_CART_CROSSSELLS', True)
 LIMIT_CROSSELLS = current_app.config.get('TRYTON_CATALOG_LIMIT_CROSSSELLS', 10)
 MINI_CART_CODE = current_app.config.get('TRYTON_CATALOG_MINI_CART_CODE', False)
 SALE_KIT = current_app.config.get('TRYTON_SALE_KIT', False)
+SALE_RULE = current_app.config.get('TRYTON_SALE_RULE', False)
 
 Date = tryton.pool.get('ir.date')
 Website = tryton.pool.get('galatea.website')
@@ -363,6 +364,14 @@ def confirm(lang):
     if carrier:
         sale.carrier = int(carrier)
         sale.set_shipment_cost() # add shipment line
+
+    # Apply rules
+    if SALE_RULE:
+        with Transaction().set_context({'apply_rule': False}):
+            sale.coupon = request.form.get('coupon', None)
+            rule_lines = sale.apply_rule()
+            if rule_lines:
+                sale.lines += tuple(rule_lines,)
 
     # mark to esale
     sale.esale = True
@@ -910,6 +919,16 @@ def checkout(lang):
         if not form_shipment_address.validate_on_submit():
             errors.append(_('Error when validate the shipment address. ' \
                 'Please, check the shipment address data.'))
+
+    # Apply rules
+    if SALE_RULE:
+        with Transaction().set_context({'apply_rule': False}):
+            coupon = request.form.get('coupon', None)
+            form_sale.coupon.default = coupon
+            sale.coupon = coupon
+            rule_lines = sale.apply_rule()
+            sale.lines += tuple(rule_lines,)
+            sale.on_change_lines()
 
     # Breadcumbs
     breadcrumbs = [{

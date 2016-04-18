@@ -15,6 +15,7 @@ class SaleForm(Form):
     payment_type = RadioField(lazy_gettext('Payment Type'))
     carrier = RadioField(lazy_gettext('Carrier'))
     comment = TextAreaField(lazy_gettext('Comment'), [])
+    coupon = TextField(lazy_gettext('Coupon'))
 
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
