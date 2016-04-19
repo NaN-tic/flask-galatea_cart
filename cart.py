@@ -41,6 +41,22 @@ PaymentType = tryton.pool.get('account.payment.type')
 
 PRODUCT_TYPE_STOCK = ['goods', 'assets']
 
+def set_sale():
+    '''Return a sale object with default values and all fields'''
+    sale = Sale()
+
+    sale_fields = Sale._fields.keys()
+    # add default values in sale
+    default_values = Sale.default_get(sale_fields, with_rec_name=False)
+    for k in default_values:
+        setattr(sale, k, default_values[k])
+    # add all sale fields
+    for k in sale_fields:
+        if not hasattr(sale, k):
+            setattr(sale, k, None)
+
+    return sale
+
 @cart.route('/carriers', methods=['GET'], endpoint="carriers")
 @tryton.transaction()
 def carriers(lang):
@@ -680,7 +696,7 @@ def checkout(lang):
             flash(_('Your email is already registed user. Please, login in.'), 'danger')
             return redirect(url_for('.cart', lang=g.language))
 
-    sale = Sale()
+    sale = set_sale()
     sale.shop = shop
     sale.currency = shop.esale_currency
     sale.lines = lines
@@ -1093,7 +1109,7 @@ def cart_list(lang):
         form_sale.carrier.default = '%s' % default_carrier.id
 
     # Create a demo sale
-    sale = Sale()
+    sale = set_sale()
     sale.shop = shop
     sale.party = party
     sale.invoice_address = default_invoice_address
