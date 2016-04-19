@@ -44,7 +44,6 @@ PRODUCT_TYPE_STOCK = ['goods', 'assets']
 def set_sale():
     '''Return a sale object with default values and all fields'''
     sale = Sale()
-    sale.sale_date = Date.today()
 
     sale_fields = Sale._fields.keys()
     # add default values in sale
@@ -347,6 +346,7 @@ def confirm(lang):
                 shop, party, values, type='delivery')
 
     sale = Sale.get_sale_data(party)
+    sale.sale_date = Date.today()
     sale.shipment_cost_method = 'order' # force shipment invoice on order
     if invoice_address:
         sale.invoice_address = invoice_address
