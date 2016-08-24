@@ -6,6 +6,7 @@ from galatea.utils import thumbnail
 from galatea.helpers import login_required, customer_required
 from flask.ext.babel import gettext as _, ngettext
 from trytond.transaction import Transaction
+from trytond.exceptions import UserError
 from .forms import SaleForm, PartyForm, ShipmentAddressForm, InvoiceAddressForm
 from decimal import Decimal
 from emailvalid import check_email
@@ -401,6 +402,8 @@ def confirm(lang):
     try:
         sale.pre_validate()
         sale.save()
+    except UserError as e:
+        current_app.logger.info(e)
     except Exception as e:
         current_app.logger.info(e)
         flash(_('We found some errors when confirm your sale.' \
@@ -410,6 +413,8 @@ def confirm(lang):
     # Convert draft to quotation
     try:
         Sale.quote([sale])
+    except UserError as e:
+        current_app.logger.info(e)
     except Exception as e:
         current_app.logger.info(e)
         flash(_('We found some errors when quote your sale.' \
