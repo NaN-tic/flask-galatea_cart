@@ -409,6 +409,10 @@ def confirm(lang):
         flash(_('We found some errors when confirm your sale.' \
             'Try again or contact us.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
+    except:
+        flash(_('We found some errors when confirm your sale.' \
+            'Try again or contact us.'), 'danger')
+        return redirect(url_for('.cart', lang=g.language))
 
     # Convert draft to quotation
     try:
