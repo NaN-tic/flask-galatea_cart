@@ -1,7 +1,7 @@
-from flask.ext.wtf import Form
+from flask_babel import lazy_gettext
+from flask_wtf import Form
 from wtforms import IntegerField, TextAreaField, TextField, SelectField, \
         RadioField, IntegerField, validators
-from flask.ext.babel import lazy_gettext
 import stdnum.eu.vat as vat
 
 # VAT Countries

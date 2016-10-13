@@ -4,7 +4,7 @@ from galatea.tryton import tryton
 from galatea.csrf import csrf
 from galatea.utils import thumbnail
 from galatea.helpers import login_required, customer_required
-from flask.ext.babel import gettext as _, ngettext
+from flask_babel import gettext as _, ngettext
 from trytond.transaction import Transaction
 from trytond.exceptions import UserError
 from .forms import SaleForm, PartyForm, ShipmentAddressForm, InvoiceAddressForm
