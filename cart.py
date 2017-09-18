@@ -98,7 +98,7 @@ def carriers(lang):
         carriers = new_carriers
 
     carriers = sorted(carriers, key=lambda k: k.price)
-    decimals = "%0."+str(shop.esale_currency.digits)+"f" # "%0.2f" euro
+    decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
 
     return jsonify(result=[{
         'id': carrier.id,
@@ -119,7 +119,7 @@ def my_cart(lang):
         ('shop', '=', SHOP),
         ]
     if session.get('user'): # login user
-        domain.append(['OR', 
+        domain.append(['OR',
             ('sid', '=', session.sid),
             ('galatea_user', '=', session['user']),
             ])
@@ -130,7 +130,7 @@ def my_cart(lang):
 
     lines = SaleLine.search(domain)
 
-    decimals = "%0."+str(shop.esale_currency.digits)+"f" # "%0.2f" euro
+    decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
     for line in lines:
         img = line.product.template.esale_default_images
         image = current_app.config.get('BASE_IMAGE')
@@ -152,7 +152,7 @@ def my_cart(lang):
             })
 
     return jsonify(result={
-        'currency': shop.esale_currency.symbol,
+        'currency': shop.currency.symbol,
         'items': items,
         })
 
@@ -175,7 +175,7 @@ def confirm(lang):
         ('shop', '=', SHOP),
         ]
     if session.get('user'): # login user
-        domain.append(['OR', 
+        domain.append(['OR',
             ('sid', '=', session.sid),
             ('galatea_user', '=', session['user']),
             ])
@@ -512,7 +512,7 @@ def add(lang):
         ('product.id', 'in', products_current_cart)
         ]
     if session.get('user'): # login user
-        domain.append(['OR', 
+        domain.append(['OR',
             ('sid', '=', session.sid),
             ('galatea_user', '=', session['user']),
             ])
@@ -593,7 +593,7 @@ def add(lang):
             if product_id not in products_in_cart and qty > 0:
                 to_create.append(line._save_values)
             # Update data
-            if product_id in products_in_cart: 
+            if product_id in products_in_cart:
                 for line in lines:
                     if line.product.id == product_id:
                         if qty > 0:
@@ -683,7 +683,7 @@ def checkout(lang):
         ('shop', '=', SHOP),
         ]
     if session.get('user'): # login user
-        domain.append(['OR', 
+        domain.append(['OR',
             ('sid', '=', session.sid),
             ('galatea_user', '=', session['user']),
             ])
@@ -709,7 +709,7 @@ def checkout(lang):
 
     sale = set_sale()
     sale.shop = shop
-    sale.currency = shop.esale_currency
+    sale.currency = shop.currency
     sale.lines = lines
     sale.on_change_lines()
 
@@ -771,7 +771,7 @@ def checkout(lang):
         sale.carrier = carrier
 
         # calculate shipment price
-        context['record'] = sale 
+        context['record'] = sale
         context['carrier'] = carrier
         with Transaction().set_context(context):
             carrier_price = carrier.get_sale_price() # return price, currency
@@ -997,7 +997,7 @@ def cart_list(lang):
         ('shop', '=', SHOP),
         ]
     if session.get('user'): # login user
-        domain.append(['OR', 
+        domain.append(['OR',
             ('sid', '=', session.sid),
             ('galatea_user', '=', session['user']),
             ])
@@ -1170,7 +1170,7 @@ def cart_pending(lang):
     domain = [
         ('sale', '=', None),
         ('shop', '=', SHOP),
-            ['OR', 
+            ['OR',
                 ('party', '=', session['customer']),
                 ('galatea_user', '=', session['user']),
             ]
@@ -1222,7 +1222,7 @@ def clone(lang):
         ('shop', '=', SHOP),
         ]
     if session.get('user'): # login user
-        domain.append(['OR', 
+        domain.append(['OR',
             ('sid', '=', session.sid),
             ('galatea_user', '=', session['user']),
             ])
