@@ -6,7 +6,6 @@ from galatea.utils import thumbnail
 from galatea.helpers import login_required, customer_required
 from flask_babel import gettext as _, ngettext
 from trytond.transaction import Transaction
-from trytond.exceptions import UserError
 from .forms import SaleForm, PartyForm, ShipmentAddressForm, InvoiceAddressForm
 from decimal import Decimal
 from emailvalid import check_email
@@ -31,13 +30,13 @@ Template = tryton.pool.get('product.template')
 Product = tryton.pool.get('product.product')
 Shop = tryton.pool.get('sale.shop')
 Carrier = tryton.pool.get('carrier')
+CarrierSelection = tryton.pool.get('carrier.selection')
 Party = tryton.pool.get('party.party')
 Address = tryton.pool.get('party.address')
 Sale = tryton.pool.get('sale.sale')
 SaleLine = tryton.pool.get('sale.line')
 Country = tryton.pool.get('country.country')
 Subdivision = tryton.pool.get('country.subdivision')
-Carrier = tryton.pool.get('carrier')
 PaymentType = tryton.pool.get('account.payment.type')
 
 PRODUCT_TYPE_STOCK = ['goods', 'assets']
@@ -90,21 +89,16 @@ def carriers(lang):
             if addresses:
                 zip = addresses[0].zip
 
-        zip_carriers = Carrier.get_carriers_from_zip(zip, carriers=carriers)
+        zip_carriers = CarrierSelection.get_carriers({'shipment_zip': zip})
         new_carriers = []
         for c in carriers:
             if c in zip_carriers:
                 new_carriers.append(c)
         carriers = new_carriers
 
-    carriers = sorted(carriers, key=lambda k: k.price)
-    decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
-
     return jsonify(result=[{
         'id': carrier.id,
         'name': carrier.rec_name,
-        'price':  float(Decimal(decimals % carrier.price)),
-        'price_w_tax': float(Decimal(decimals % carrier.price_w_tax)),
         } for carrier in carriers])
 
 @cart.route('/json/my-cart', methods=['GET', 'PUT'], endpoint="my-cart")
@@ -402,14 +396,8 @@ def confirm(lang):
     try:
         sale.pre_validate()
         sale.save()
-    except UserError as e:
-        current_app.logger.info(e)
     except Exception as e:
-        current_app.logger.info(e)
-        flash(_('We found some errors when confirm your sale.' \
-            'Try again or contact us.'), 'danger')
-        return redirect(url_for('.cart', lang=g.language))
-    except:
+        current_app.logger.warn(e)
         flash(_('We found some errors when confirm your sale.' \
             'Try again or contact us.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
@@ -417,10 +405,8 @@ def confirm(lang):
     # Convert draft to quotation
     try:
         Sale.quote([sale])
-    except UserError as e:
-        current_app.logger.info(e)
     except Exception as e:
-        current_app.logger.info(e)
+        current_app.logger.warn(e)
         flash(_('We found some errors when quote your sale.' \
             'Contact Us.'), 'danger')
 
