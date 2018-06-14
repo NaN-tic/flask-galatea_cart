@@ -22,6 +22,7 @@ LIMIT_CROSSELLS = current_app.config.get('TRYTON_CATALOG_LIMIT_CROSSSELLS', 10)
 MINI_CART_CODE = current_app.config.get('TRYTON_CATALOG_MINI_CART_CODE', False)
 SALE_KIT = current_app.config.get('TRYTON_SALE_KIT', False)
 SALE_RULE = current_app.config.get('TRYTON_SALE_RULE', False)
+REDIRECT_TO_PAYMENT_GATEWAY = current_app.config.get('REDIRECT_TO_PAYMENT_GATEWAY', False)
 
 Date = tryton.pool.get('ir.date')
 Website = tryton.pool.get('galatea.website')
@@ -414,6 +415,9 @@ def confirm(lang):
         current_app.logger.info('Sale. Create sale %s' % sale.id)
 
     flash(_('Successfully created a new order.'), 'success')
+
+    if REDIRECT_TO_PAYMENT_GATEWAY and sale.payment_type.esale_code:
+        return render_template('payment.html', sale=sale)
 
     return redirect(url_for('sale.sale', lang=g.language, id=sale.id))
 
