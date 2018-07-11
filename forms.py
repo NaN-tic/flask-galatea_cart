@@ -6,7 +6,7 @@ import stdnum.eu.vat as vat
 
 # VAT Countries
 VAT_COUNTRIES = [('', '')]
-for country in vat.country_codes:
+for country in vat._country_codes:
     VAT_COUNTRIES.append((country, country.upper()))
 
 
