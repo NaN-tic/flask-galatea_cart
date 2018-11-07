@@ -1203,7 +1203,8 @@ def clone(lang):
 
     products = set()
     for l in sale.lines:
-        if l.product and l.product.esale_available:
+        if (l.product and l.product.esale_available and
+                (l.shipment_cost == None or l.shipment_cost == 0)):
             products.add(l.product.id)
 
     # Search current carts by user or session
