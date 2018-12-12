@@ -6,6 +6,7 @@ from galatea.utils import thumbnail
 from galatea.helpers import login_required, customer_required
 from flask_babel import gettext as _, ngettext
 from trytond.transaction import Transaction
+from trytond.exceptions import UserError
 from .forms import SaleForm, PartyForm, ShipmentAddressForm, InvoiceAddressForm
 from decimal import Decimal
 from emailvalid import check_email
@@ -106,9 +107,15 @@ def carriers(lang):
                 new_carriers.append(c)
         carriers = new_carriers
 
+    carriers = sorted(carriers, key=lambda k: k.price)
+    decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
+
     return jsonify(result=[{
         'id': carrier.id,
         'name': carrier.rec_name,
+        'fullname': carrier.fullname,
+        'price':  float(Decimal(decimals % carrier.price)),
+        'price_w_tax': float(Decimal(decimals % carrier.price_w_tax)),
         } for carrier in carriers])
 
 @cart.route('/json/my-cart', methods=['GET', 'PUT'], endpoint="my-cart")
@@ -409,8 +416,14 @@ def confirm(lang):
     try:
         sale.pre_validate()
         sale.save()
+    except UserError as e:
+        current_app.logger.info(e)
     except Exception as e:
-        current_app.logger.warn(e)
+        current_app.logger.info(e)
+        flash(_('We found some errors when confirm your sale.' \
+            'Try again or contact us.'), 'danger')
+        return redirect(url_for('.cart', lang=g.language))
+    except:
         flash(_('We found some errors when confirm your sale.' \
             'Try again or contact us.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
@@ -418,8 +431,10 @@ def confirm(lang):
     # Convert draft to quotation
     try:
         Sale.quote([sale])
+    except UserError as e:
+        current_app.logger.info(e)
     except Exception as e:
-        current_app.logger.warn(e)
+        current_app.logger.info(e)
         flash(_('We found some errors when quote your sale.' \
             'Contact Us.'), 'danger')
 
