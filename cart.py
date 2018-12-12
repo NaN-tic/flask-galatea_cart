@@ -65,6 +65,7 @@ def carriers(lang):
     '''Return all carriers (JSON)'''
     address = request.args.get('address', None)
     zip = request.args.get('zip', None)
+    country = request.args.get('country', None)
     untaxed = request.args.get('untaxed', None)
     tax = request.args.get('tax', None)
     total = request.args.get('total', None)
@@ -83,15 +84,22 @@ def carriers(lang):
         )
 
     if address or zip:
+        pattern = {}
         if address and customer:
             addresses = Address.search([
                 ('party', '=', customer),
                 ('id', '=', address),
                 ], limit=1)
             if addresses:
-                zip = addresses[0].zip
+                address, = addresses
+                zip = address.zip
+                country = address.country.id if address.country else None
+        if zip:
+            pattern['shipment_zip'] = zip
+        if country:
+            pattern['to_country'] = country
 
-        zip_carriers = CarrierSelection.get_carriers({'shipment_zip': zip})
+        zip_carriers = CarrierSelection.get_carriers(pattern)
         new_carriers = []
         for c in carriers:
             if c in zip_carriers:
