@@ -69,7 +69,7 @@ class ShipmentAddressForm(Form):
 
 
 class InvoiceAddressForm(Form):
-    "Shipment Address form"
+    "Invoice Address form"
     invoice_id = TextField('ID')
     invoice_name = TextField(lazy_gettext('Name'), [validators.Required()])
     invoice_street = TextField(lazy_gettext('Street'), [validators.Required()])
