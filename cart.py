@@ -17,6 +17,7 @@ GALATEA_WEBSITE = current_app.config.get('TRYTON_GALATEA_SITE')
 SHOP = current_app.config.get('TRYTON_SALE_SHOP')
 SHOPS = current_app.config.get('TRYTON_SALE_SHOPS')
 DELIVERY_INVOICE_ADDRESS = current_app.config.get('TRYTON_SALE_DELIVERY_INVOICE_ADDRESS', True)
+CART_ANONYMOUS = current_app.config.get('TRYTON_CART_ANONYMOUS', True)
 CART_CROSSSELLS = current_app.config.get('TRYTON_CART_CROSSSELLS', True)
 LIMIT_CROSSELLS = current_app.config.get('TRYTON_CATALOG_LIMIT_CROSSSELLS', 10)
 MINI_CART_CODE = current_app.config.get('TRYTON_CATALOG_MINI_CART_CODE', False)
@@ -159,6 +160,9 @@ def confirm(lang):
     data = request.form
 
     party = session.get('customer')
+    if not party and not CART_ANONYMOUS:
+        flash(_('Please login in to continue the checkout.'), 'danger')
+        return redirect(url_for('.cart', lang=g.language))
     invoice_address = request.form.get('invoice_address')
     invoice_address = invoice_address if invoice_address != 'None' else None
     shipment_address = request.form.get('shipment_address')
@@ -707,6 +711,9 @@ def checkout(lang):
     if session.get('customer'):
         party = Party(session.get('customer'))
         sale.party = party
+    elif not CART_ANONYMOUS:
+        flash(_('Please login in to continue the checkout.'), 'danger')
+        return redirect(url_for('.cart', lang=g.language))
 
     if website.esale_stock:
         for line in lines:
