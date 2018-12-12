@@ -33,13 +33,13 @@ Template = tryton.pool.get('product.template')
 Product = tryton.pool.get('product.product')
 Shop = tryton.pool.get('sale.shop')
 Carrier = tryton.pool.get('carrier')
+CarrierSelection = tryton.pool.get('carrier.selection')
 Party = tryton.pool.get('party.party')
 Address = tryton.pool.get('party.address')
 Sale = tryton.pool.get('sale.sale')
 SaleLine = tryton.pool.get('sale.line')
 Country = tryton.pool.get('country.country')
 Subdivision = tryton.pool.get('country.subdivision')
-Carrier = tryton.pool.get('carrier')
 PaymentType = tryton.pool.get('account.payment.type')
 
 PRODUCT_TYPE_STOCK = ['goods', 'assets']
@@ -66,6 +66,7 @@ def carriers(lang):
     '''Return all carriers (JSON)'''
     address = request.args.get('address', None)
     zip = request.args.get('zip', None)
+    country = request.args.get('country', None)
     untaxed = request.args.get('untaxed', None)
     tax = request.args.get('tax', None)
     total = request.args.get('total', None)
@@ -84,15 +85,22 @@ def carriers(lang):
         )
 
     if address or zip:
+        pattern = {}
         if address and customer:
             addresses = Address.search([
                 ('party', '=', customer),
                 ('id', '=', address),
                 ], limit=1)
             if addresses:
-                zip = addresses[0].zip
+                address, = addresses
+                zip = address.zip
+                country = address.country.id if address.country else None
+        if zip:
+            pattern['shipment_zip'] = zip
+        if country:
+            pattern['to_country'] = country
 
-        zip_carriers = Carrier.get_carriers_from_zip(zip, carriers=carriers)
+        zip_carriers = CarrierSelection.get_carriers(pattern)
         new_carriers = []
         for c in carriers:
             if c in zip_carriers:
