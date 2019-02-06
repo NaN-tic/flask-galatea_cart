@@ -691,6 +691,7 @@ def checkout(lang):
     context = {}
     errors = []
     shop = Shop(SHOP)
+    countries = [(str(c.id), c.name) for c in shop.esale_countrys]
 
     email = request.form.get('invoice_email') or request.form.get('shipment_email')
 
@@ -811,9 +812,8 @@ def checkout(lang):
     form_sale.comment.data = request.form.get('comment')
 
     # Invoice Address
-    form_invoice_address = InvoiceAddressForm(
-        invoice_country=request.form.get('invoice_country'),
-        invoice_subdivision=request.form.get('invoice_subdivision'))
+    form_invoice_address = InvoiceAddressForm()
+    form_invoice_address.invoice_country.choices = countries
 
     invoice_address = request.form.get('invoice_address')
     if invoice_address:
@@ -866,9 +866,7 @@ def checkout(lang):
                 form_invoice_address.invoice_phone.data = address.phone
 
                 if address.country:
-                    form_invoice_address.invoice_country.label = address.country.name
-                    form_invoice_address.invoice_country.choices = [(address.country.id, address.country.name)]
-                    form_invoice_address.invoice_country.default = '%s' % address.country.id
+                    form_invoice_address.invoice_country.data = '%s' % address.country.id
                 if address.subdivision:
                     form_invoice_address.invoice_subdivision.label = address.subdivision.name
                     form_invoice_address.invoice_subdivision.choices = [(address.subdivision.id, address.subdivision.name)]
@@ -882,9 +880,8 @@ def checkout(lang):
                 'Please, check the invoice address data.'))
 
     # Shipment Address
-    form_shipment_address = ShipmentAddressForm(
-        shipment_country=request.form.get('shipment_country'),
-        invoice_subdivision=request.form.get('shipment_subdivision'))
+    form_shipment_address = ShipmentAddressForm()
+    form_shipment_address.shipment_country.choices = countries
 
     shipment_address = request.form.get('shipment_address')
     if shipment_address:
@@ -941,7 +938,6 @@ def checkout(lang):
                 ], limit=1)
             if addresses:
                 address, = addresses
-
                 form_shipment_address.shipment_id.data = '%s' % address.id
                 form_shipment_address.shipment_name.data = address.name
                 form_shipment_address.shipment_street.data = address.street
@@ -951,9 +947,7 @@ def checkout(lang):
                 form_shipment_address.shipment_phone.data = address.phone
 
                 if address.country:
-                    form_shipment_address.shipment_country.label = address.country.name
-                    form_shipment_address.shipment_country.choices = [(address.country.id, address.country.name)]
-                    form_shipment_address.shipment_country.default = '%s' % address.country.id
+                    form_shipment_address.shipment_country.data = '%s' % address.country.id
                 if address.subdivision:
                     form_shipment_address.shipment_subdivision.label = address.subdivision.name
                     form_shipment_address.shipment_subdivision.choices = [(address.subdivision.id, address.subdivision.name)]
