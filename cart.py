@@ -796,13 +796,18 @@ def checkout(lang):
         context['carrier'] = carrier
         with Transaction().set_context(context):
             carrier_price = carrier.get_sale_price() # return price, currency
-        shipment_price = carrier_price[0]
 
+        shipment_price = carrier_price[0]
         shipment_line = sale.get_shipment_cost_line(shipment_price)
         shipment_line.unit_price_w_tax = shipment_line.on_change_with_unit_price_w_tax()
         shipment_line.amount_w_tax = shipment_line.on_change_with_amount_w_tax()
 
         sale.lines += (shipment_line,)
+
+        extra_lines = sale._get_extra_lines()
+        if extra_lines:
+            sale.lines += tuple(extra_lines)
+
         sale.on_change_lines()
 
         form_sale.carrier.label = carrier.rec_name
@@ -1226,10 +1231,9 @@ def clone(lang):
     sale, = sales
 
     products = set()
-    for l in sale.lines:
-        if (l.product and l.product.esale_available and
-                (l.shipment_cost == None or l.shipment_cost == 0)):
-            products.add(l.product.id)
+    sale_lines = sale.get_esale_lines()
+    for l in sale_lines:
+        products.add(l.product.id)
 
     # Search current carts by user or session
     domain = [
