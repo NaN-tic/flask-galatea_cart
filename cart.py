@@ -822,8 +822,6 @@ def checkout(lang):
     form_invoice_address = InvoiceAddressForm()
     form_invoice_address.invoice_country.choices = countries
 
-    invoice_country = None
-    invoice_subdivision = None
     invoice_address = request.form.get('invoice_address')
     if invoice_address:
         if invoice_address == 'new-address':
@@ -931,12 +929,12 @@ def checkout(lang):
             form_shipment_address.shipment_email.data = form_invoice_address.invoice_email.data
             form_shipment_address.shipment_phone.data = form_invoice_address.invoice_phone.data
 
-            if invoice_country:
-                form_shipment_address.shipment_country.choices = [(str(country.id), country.name)]
-                form_shipment_address.shipment_country.data = '%s' % invoice_country
-            if invoice_subdivision:
+            if form_invoice_address.invoice_country:
+                form_shipment_address.shipment_country.choices = form_invoice_address.invoice_country.choices
+                form_shipment_address.shipment_country.data = form_invoice_address.invoice_country.data
+            if form_invoice_address.invoice_subdivision:
                 form_shipment_address.shipment_subdivision.label = form_invoice_address.invoice_subdivision.label
-                form_shipment_address.shipment_subdivision.data = '%s' % invoice_subdivision
+                form_shipment_address.shipment_subdivision.data = form_invoice_address.invoice_subdivision.data
         elif party:
             addresses = Address.search([
                 ('party', '=', party),
