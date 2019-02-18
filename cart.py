@@ -272,14 +272,14 @@ def confirm(lang):
             invoice_country = data.get('invoice_country')
             if invoice_country:
                 country = Country(invoice_country)
-                form_invoice_address.invoice_country.choices = [(country.id, country.name)]
-                form_invoice_address.invoice_country.default = request.form.get('invoice_country')
+                form_invoice_address.invoice_country.choices = [(str(country.id), country.name)]
+                form_invoice_address.invoice_country.data = '%s' % invoice_country
 
             invoice_subdivision = data.get('invoice_subdivision')
             if invoice_subdivision:
                 subdivision = Subdivision(invoice_subdivision)
-                form_invoice_address.invoice_subdivision.choices = [(subdivision.id, subdivision.name)]
-                form_invoice_address.invoice_subdivision.default = request.form.get('invoice_subdivision')
+                form_invoice_address.invoice_subdivision.label = subdivision.name
+                form_invoice_address.invoice_subdivision.data = '%s' % invoice_subdivision
 
             if not form_invoice_address.validate_on_submit():
                 flash(_('We found some errors in your invoice address data. ' \
@@ -329,14 +329,14 @@ def confirm(lang):
             shipment_country = data.get('shipment_country')
             if shipment_country:
                 country = Country(shipment_country)
-                form_shipment_address.shipment_country.choices = [(country.id, country.name)]
-                form_shipment_address.shipment_country.default = request.form.get('shipment_country')
+                form_shipment_address.shipment_country.choices = [(str(country.id), country.name)]
+                form_shipment_address.shipment_country.data = '%s' % shipment_country
 
             shipment_subdivision = data.get('shipment_subdivision')
             if shipment_subdivision:
                 subdivision = Subdivision(shipment_subdivision)
-                form_shipment_address.shipment_subdivision.choices = [(subdivision.id, subdivision.name)]
-                form_shipment_address.shipment_subdivision.default = request.form.get('shipment_subdivision')
+                form_shipment_address.shipment_subdivision.label = subdivision.name
+                form_shipment_address.shipment_subdivision.data = '%s' % shipment_subdivision
 
             if not form_shipment_address.validate_on_submit():
                 flash(_('We found some errors in your shipment address data. ' \
@@ -821,6 +821,8 @@ def checkout(lang):
     form_invoice_address = InvoiceAddressForm()
     form_invoice_address.invoice_country.choices = countries
 
+    invoice_country = None
+    invoice_subdivision = None
     invoice_address = request.form.get('invoice_address')
     if invoice_address:
         if invoice_address == 'new-address':
@@ -844,16 +846,14 @@ def checkout(lang):
             invoice_country = request.form.get('invoice_country')
             if invoice_country:
                 country = Country(invoice_country)
-                form_invoice_address.invoice_country.label = country.name
-                form_invoice_address.invoice_country.choices = [(country.id, country.name)]
-                form_invoice_address.invoice_country.default = request.form.get('invoice_country')
+                form_invoice_address.invoice_country.choices = [(str(country.id), country.name)]
+                form_invoice_address.invoice_country.data = '%s' % invoice_country
 
             invoice_subdivision = request.form.get('invoice_subdivision')
             if invoice_subdivision:
                 subdivision = Subdivision(invoice_subdivision)
                 form_invoice_address.invoice_subdivision.label = subdivision.name
-                form_invoice_address.invoice_subdivision.choices = [(subdivision.id, subdivision.name)]
-                form_invoice_address.invoice_subdivision.default = request.form.get('invoice_subdivision')
+                form_invoice_address.invoice_subdivision.data = '%s' % invoice_subdivision
 
         elif party:
             addresses = Address.search([
@@ -872,11 +872,11 @@ def checkout(lang):
                 form_invoice_address.invoice_phone.data = address.phone
 
                 if address.country:
+                    form_invoice_address.invoice_country.choices = [(str(address.country.id), address.country.name)]
                     form_invoice_address.invoice_country.data = '%s' % address.country.id
                 if address.subdivision:
                     form_invoice_address.invoice_subdivision.label = address.subdivision.name
-                    form_invoice_address.invoice_subdivision.choices = [(address.subdivision.id, address.subdivision.name)]
-                    form_invoice_address.invoice_subdivision.default = '%s' % address.subdivision.id
+                    form_invoice_address.invoice_subdivision.data = '%s' % address.subdivision.id
             else:
                 errors.append(_('We can not found a related address. ' \
                     'Please, select a new address in Invoice Address'))
@@ -912,16 +912,14 @@ def checkout(lang):
             shipment_country = request.form.get('shipment_country')
             if shipment_country:
                 country = Country(shipment_country)
-                form_shipment_address.shipment_country.label = country.name
-                form_shipment_address.shipment_country.choices = [(country.id, country.name)]
-                form_shipment_address.shipment_country.default = request.form.get('shipment_country')
+                form_shipment_address.shipment_country.choices = [(str(country.id), country.name)]
+                form_shipment_address.shipment_country.data = '%s' % shipment_country
 
             shipment_subdivision = request.form.get('shipment_subdivision')
             if shipment_subdivision:
                 subdivision = Subdivision(shipment_subdivision)
                 form_shipment_address.shipment_subdivision.label = subdivision.name
-                form_shipment_address.shipment_subdivision.choices = [(subdivision.id, subdivision.name)]
-                form_shipment_address.shipment_subdivision.default = request.form.get('shipment_subdivision')
+                form_shipment_address.shipment_subdivision.data = shipment_subdivision
         elif shipment_address == 'invoice-address' and invoice_address:
             shipment_address = invoice_address
             form_shipment_address.shipment_id.data = form_invoice_address.invoice_id.data
@@ -931,12 +929,13 @@ def checkout(lang):
             form_shipment_address.shipment_city.data = form_invoice_address.invoice_city.data
             form_shipment_address.shipment_email.data = form_invoice_address.invoice_email.data
             form_shipment_address.shipment_phone.data = form_invoice_address.invoice_phone.data
-            form_shipment_address.shipment_country.label = form_invoice_address.invoice_country.label
-            form_shipment_address.shipment_country.choices = form_invoice_address.invoice_country.choices
-            form_shipment_address.shipment_country.default = form_invoice_address.invoice_country.default
-            form_shipment_address.shipment_subdivision.label = form_invoice_address.invoice_subdivision.label
-            form_shipment_address.shipment_subdivision.choices = form_invoice_address.invoice_subdivision.choices
-            form_shipment_address.shipment_subdivision.default = form_invoice_address.invoice_subdivision.default
+
+            if invoice_country:
+                form_shipment_address.shipment_country.choices = [(str(country.id), country.name)]
+                form_shipment_address.shipment_country.data = '%s' % invoice_country
+            if invoice_subdivision:
+                form_shipment_address.shipment_subdivision.label = form_invoice_address.invoice_subdivision.label
+                form_shipment_address.shipment_subdivision.data = '%s' % invoice_subdivision
         elif party:
             addresses = Address.search([
                 ('party', '=', party),
@@ -949,15 +948,15 @@ def checkout(lang):
                 form_shipment_address.shipment_street.data = address.street
                 form_shipment_address.shipment_zip.data = address.zip
                 form_shipment_address.shipment_city.data = address.city
-                form_shipment_address.shipment_email.data = address.email or session['email']
+                form_shipment_address.shipment_email.data = address.email or session.get('email')
                 form_shipment_address.shipment_phone.data = address.phone
 
                 if address.country:
+                    form_shipment_address.shipment_country.choices = [(str(address.country.id), address.country.name)]
                     form_shipment_address.shipment_country.data = '%s' % address.country.id
                 if address.subdivision:
                     form_shipment_address.shipment_subdivision.label = address.subdivision.name
-                    form_shipment_address.shipment_subdivision.choices = [(address.subdivision.id, address.subdivision.name)]
-                    form_shipment_address.shipment_subdivision.default = '%s' % address.subdivision.id
+                    form_shipment_address.shipment_subdivision.data = '%s' % address.subdivision.id
             else:
                 errors.append(_('We can not found a related address. ' \
                     'Please, select a new address in shipment Address'))
@@ -1099,17 +1098,17 @@ def cart_list(lang):
         payment_type=default_payment_type.id if default_payment_type else None,
         carrier=default_carrier.id if default_carrier else None)
 
-    invoice_address_choices = [(a.id, a.full_address) for a in invoice_addresses]
+    invoice_address_choices = [(str(a.id), a.full_address) for a in invoice_addresses]
     invoice_address_choices.append(('new-address', _('New address')))
-    shipment_address_choices = [(a.id, a.full_address) for a in shipment_addresses]
+    shipment_address_choices = [(str(a.id), a.full_address) for a in shipment_addresses]
     if DELIVERY_INVOICE_ADDRESS:
         shipment_address_choices.insert(0, ('invoice-address', _('Delivery to Invoice Address')))
     shipment_address_choices.append(('new-address', _('New address')))
 
     form_party = PartyForm(
         vat_country=shop.esale_country.code,
-        invoice_address=default_invoice_address.id if default_invoice_address else invoice_address_choices[0][0],
-        shipment_address=default_shipment_address.id if default_shipment_address else shipment_address_choices[0][0],
+        invoice_address=str(default_invoice_address.id) if default_invoice_address else invoice_address_choices[0][0],
+        shipment_address=str(default_shipment_address.id) if default_shipment_address else shipment_address_choices[0][0],
         )
     form_party.invoice_address.choices = invoice_address_choices
     form_party.shipment_address.choices = shipment_address_choices
@@ -1117,24 +1116,24 @@ def cart_list(lang):
     # Invoice address country options
     form_invoice_address = InvoiceAddressForm(
         country=shop.esale_country.id)
-    countries = [(c.id, c.name) for c in shop.esale_countrys]
+    countries = [(str(c.id), c.name) for c in shop.esale_countrys]
     form_invoice_address.invoice_country.choices = countries
 
     # Shipment address country options
     form_shipment_address = ShipmentAddressForm(
         country=shop.esale_country.id)
-    countries = [(c.id, c.name) for c in shop.esale_countrys]
+    countries = [(str(c.id), c.name) for c in shop.esale_countrys]
     form_shipment_address.shipment_country.choices = countries
 
     # Payment types options
-    form_sale.payment_type.choices = [(p.id, p.name) for p in payment_types]
+    form_sale.payment_type.choices = [(str(p.id), p.name) for p in payment_types]
     if not default_payment_type and payment_types:
         default_payment_type = payment_types[0]
     if default_payment_type:
         form_sale.payment_type.default = '%s' % default_payment_type.id
 
     # Carrier options
-    form_sale.carrier.choices = [(c.id, c.rec_name) for c in carriers]
+    form_sale.carrier.choices = [(str(c.id), c.rec_name) for c in carriers]
     if default_carrier:
         form_sale.carrier.default = '%s' % default_carrier.id
 
