@@ -1158,6 +1158,8 @@ def cart_list(lang):
         if crossells_ids:
             crossells = Template.browse(list(crossells_ids)[:LIMIT_CROSSELLS])
 
+    session['next'] = url_for('.cart', lang=g.language)
+
     # Breadcumbs
     breadcrumbs = [{
         'slug': url_for('.cart', lang=g.language),
