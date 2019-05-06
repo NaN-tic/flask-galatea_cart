@@ -1,7 +1,7 @@
 from flask_babel import lazy_gettext
 from flask_wtf import Form
-from wtforms import IntegerField, TextAreaField, TextField, SelectField, \
-        RadioField, IntegerField, validators
+from wtforms import (IntegerField, TextAreaField, TextField, SelectField,
+        RadioField, validators)
 import stdnum.eu.vat as vat
 
 # VAT Countries
@@ -29,12 +29,12 @@ class SaleForm(Form):
 
 class PartyForm(Form):
     "Party form"
-    name = TextField(lazy_gettext('Name'), [validators.Required()])
+    name = TextField(lazy_gettext('Name'), [validators.InputRequired()])
     vat_country = SelectField(lazy_gettext('VAT Country'), choices=VAT_COUNTRIES)
     vat_number = TextField(lazy_gettext('VAT Number'))
     invoice_address = RadioField(lazy_gettext('Invoice Address'))
     shipment_address = RadioField(lazy_gettext('Shipment Address'))
-    esale_email = TextField(lazy_gettext('E-mail'), [validators.Required(), validators.Email()])
+    esale_email = TextField(lazy_gettext('E-mail'), [validators.InputRequired(), validators.Email()])
 
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
@@ -49,13 +49,13 @@ class PartyForm(Form):
 class ShipmentAddressForm(Form):
     "Shipment Address form"
     shipment_id = TextField('ID')
-    shipment_name = TextField(lazy_gettext('Name'), [validators.Required()])
-    shipment_street = TextField(lazy_gettext('Street'), [validators.Required()])
-    shipment_city = TextField(lazy_gettext('City'), [validators.Required()])
-    shipment_zip = TextField(lazy_gettext('Zip'), [validators.Required()])
-    shipment_country = SelectField(lazy_gettext('Country'), [validators.Required(),], coerce=int)
+    shipment_name = TextField(lazy_gettext('Name'), [validators.InputRequired()])
+    shipment_street = TextField(lazy_gettext('Street'), [validators.InputRequired()])
+    shipment_city = TextField(lazy_gettext('City'), [validators.InputRequired()])
+    shipment_zip = TextField(lazy_gettext('Zip'), [validators.InputRequired()])
+    shipment_country = SelectField(lazy_gettext('Country'), [validators.InputRequired(),], coerce=int)
     shipment_subdivision = IntegerField(lazy_gettext('Subdivision'))
-    shipment_email = TextField(lazy_gettext('E-mail'), [validators.Required(), validators.Email()])
+    shipment_email = TextField(lazy_gettext('E-mail'), [validators.InputRequired(), validators.Email()])
     shipment_phone = TextField(lazy_gettext('Phone'))
 
     def __init__(self, *args, **kwargs):
@@ -71,13 +71,13 @@ class ShipmentAddressForm(Form):
 class InvoiceAddressForm(Form):
     "Invoice Address form"
     invoice_id = TextField('ID')
-    invoice_name = TextField(lazy_gettext('Name'), [validators.Required()])
-    invoice_street = TextField(lazy_gettext('Street'), [validators.Required()])
-    invoice_city = TextField(lazy_gettext('City'), [validators.Required()])
-    invoice_zip = TextField(lazy_gettext('Zip'), [validators.Required()])
-    invoice_country = SelectField(lazy_gettext('Country'), [validators.Required(),], coerce=int)
+    invoice_name = TextField(lazy_gettext('Name'), [validators.InputRequired()])
+    invoice_street = TextField(lazy_gettext('Street'), [validators.InputRequired()])
+    invoice_city = TextField(lazy_gettext('City'), [validators.InputRequired()])
+    invoice_zip = TextField(lazy_gettext('Zip'), [validators.InputRequired()])
+    invoice_country = SelectField(lazy_gettext('Country'), [validators.InputRequired(),], coerce=int)
     invoice_subdivision = IntegerField(lazy_gettext('Subdivision'))
-    invoice_email = TextField(lazy_gettext('E-mail'), [validators.Required(), validators.Email()])
+    invoice_email = TextField(lazy_gettext('E-mail'), [validators.InputRequired(), validators.Email()])
     invoice_phone = TextField(lazy_gettext('Phone'))
 
     def __init__(self, *args, **kwargs):

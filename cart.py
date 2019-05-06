@@ -177,6 +177,7 @@ def confirm(lang):
     if not party and not CART_ANONYMOUS:
         flash(_('Please login in to continue the checkout.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
+
     invoice_address = request.form.get('invoice_address')
     invoice_address = invoice_address if invoice_address != 'None' else None
     shipment_address = request.form.get('shipment_address')
@@ -488,7 +489,7 @@ def add(lang):
             return jsonify(result=False)
     # post request
     else:
-        for k, v in request.form.iteritems():
+        for k, v in request.form.items():
             prod = k.split('-')
             if prod[0] == 'product':
                 try:
@@ -520,7 +521,7 @@ def add(lang):
     removes = request.form.getlist('remove')
 
     # Products Current User Cart (products to send)
-    products_current_cart = [k for k,v in values.iteritems()]
+    products_current_cart = [k for k,v in values.items()]
 
     # Search current cart by user or session
     domain = [
@@ -568,7 +569,7 @@ def add(lang):
                     return redirect(url_for('.cart', lang=g.language))
 
     # Add/Update products data
-    for product_id, qty in values.iteritems():
+    for product_id, qty in values.items():
         product = None
         for p in products:
             if p.id == product_id:
@@ -650,7 +651,7 @@ def add(lang):
         flash(ngettext(
             '%(num)s product has been updated in your cart.',
             '%(num)s products have been updated in your cart.',
-            total), 'success')
+            int(total)), 'success')
 
     # Delete Cart
     if to_remove:
