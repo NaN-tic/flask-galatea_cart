@@ -868,8 +868,8 @@ def checkout(lang):
                 form_invoice_address.invoice_street.data = address.street
                 form_invoice_address.invoice_zip.data = address.zip
                 form_invoice_address.invoice_city.data = address.city
-                form_invoice_address.invoice_email.data = address.email or session['email']
-                form_invoice_address.invoice_phone.data = address.phone
+                form_invoice_address.invoice_email.data = session['email']
+                form_invoice_address.invoice_phone.data = ''
 
                 if address.country:
                     form_invoice_address.invoice_country.choices = [(str(address.country.id), address.country.name)]
@@ -877,6 +877,8 @@ def checkout(lang):
                 if address.subdivision:
                     form_invoice_address.invoice_subdivision.label = address.subdivision.name
                     form_invoice_address.invoice_subdivision.data = '%s' % address.subdivision.id
+                else:
+                    form_invoice_address.invoice_subdivision.data = ''
             else:
                 errors.append(_('We can not found a related address. ' \
                     'Please, select a new address in Invoice Address'))
@@ -948,8 +950,7 @@ def checkout(lang):
                 form_shipment_address.shipment_street.data = address.street
                 form_shipment_address.shipment_zip.data = address.zip
                 form_shipment_address.shipment_city.data = address.city
-                form_shipment_address.shipment_email.data = address.email or session.get('email')
-                form_shipment_address.shipment_phone.data = address.phone
+                form_shipment_address.shipment_email.data = session.get('email')
 
                 if address.country:
                     form_shipment_address.shipment_country.choices = [(str(address.country.id), address.country.name)]
@@ -957,6 +958,8 @@ def checkout(lang):
                 if address.subdivision:
                     form_shipment_address.shipment_subdivision.label = address.subdivision.name
                     form_shipment_address.shipment_subdivision.data = '%s' % address.subdivision.id
+                else:
+                    form_shipment_address.shipment_subdivision.data = ''
             else:
                 errors.append(_('We can not found a related address. ' \
                     'Please, select a new address in shipment Address'))
