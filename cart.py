@@ -444,7 +444,8 @@ def confirm(lang):
 
     flash(_('Successfully created a new order.'), 'success')
 
-    if REDIRECT_TO_PAYMENT_GATEWAY and sale.payment_type.esale_code:
+    if (REDIRECT_TO_PAYMENT_GATEWAY and
+            sale.payment_type and sale.payment_type.esale_code):
         return render_template('payment.html', sale=sale)
 
     return redirect(url_for('sale.sale', lang=g.language, id=sale.id))
