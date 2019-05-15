@@ -29,12 +29,12 @@ class SaleForm(Form):
 
 class PartyForm(Form):
     "Party form"
-    name = TextField(lazy_gettext('Name'), [validators.InputRequired()])
+    name = TextField(lazy_gettext('Name'), [validators.DataRequired()])
     vat_country = SelectField(lazy_gettext('VAT Country'), choices=VAT_COUNTRIES)
     vat_number = TextField(lazy_gettext('VAT Number'))
     invoice_address = RadioField(lazy_gettext('Invoice Address'))
     shipment_address = RadioField(lazy_gettext('Shipment Address'))
-    esale_email = TextField(lazy_gettext('E-mail'), [validators.InputRequired(), validators.Email()])
+    esale_email = TextField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
 
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
@@ -49,13 +49,13 @@ class PartyForm(Form):
 class ShipmentAddressForm(Form):
     "Shipment Address form"
     shipment_id = TextField('ID')
-    shipment_name = TextField(lazy_gettext('Name'), [validators.InputRequired()])
-    shipment_street = TextField(lazy_gettext('Street'), [validators.InputRequired()])
-    shipment_city = TextField(lazy_gettext('City'), [validators.InputRequired()])
-    shipment_zip = TextField(lazy_gettext('Zip'), [validators.InputRequired()])
-    shipment_country = SelectField(lazy_gettext('Country'), [validators.InputRequired(),], coerce=int)
+    shipment_name = TextField(lazy_gettext('Name'))
+    shipment_street = TextField(lazy_gettext('Street'), [validators.DataRequired()])
+    shipment_city = TextField(lazy_gettext('City'), [validators.DataRequired()])
+    shipment_zip = TextField(lazy_gettext('Zip'), [validators.DataRequired()])
+    shipment_country = SelectField(lazy_gettext('Country'), [validators.DataRequired(),], coerce=int)
     shipment_subdivision = IntegerField(lazy_gettext('Subdivision'))
-    shipment_email = TextField(lazy_gettext('E-mail'), [validators.InputRequired(), validators.Email()])
+    shipment_email = TextField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
     shipment_phone = TextField(lazy_gettext('Phone'))
 
     def __init__(self, *args, **kwargs):
@@ -71,13 +71,13 @@ class ShipmentAddressForm(Form):
 class InvoiceAddressForm(Form):
     "Invoice Address form"
     invoice_id = TextField('ID')
-    invoice_name = TextField(lazy_gettext('Name'), [validators.InputRequired()])
-    invoice_street = TextField(lazy_gettext('Street'), [validators.InputRequired()])
-    invoice_city = TextField(lazy_gettext('City'), [validators.InputRequired()])
-    invoice_zip = TextField(lazy_gettext('Zip'), [validators.InputRequired()])
-    invoice_country = SelectField(lazy_gettext('Country'), [validators.InputRequired(),], coerce=int)
+    invoice_name = TextField(lazy_gettext('Name'))
+    invoice_street = TextField(lazy_gettext('Street'), [validators.DataRequired()])
+    invoice_city = TextField(lazy_gettext('City'), [validators.DataRequired()])
+    invoice_zip = TextField(lazy_gettext('Zip'), [validators.DataRequired()])
+    invoice_country = SelectField(lazy_gettext('Country'), [validators.DataRequired(),], coerce=int)
     invoice_subdivision = IntegerField(lazy_gettext('Subdivision'))
-    invoice_email = TextField(lazy_gettext('E-mail'), [validators.InputRequired(), validators.Email()])
+    invoice_email = TextField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
     invoice_phone = TextField(lazy_gettext('Phone'))
 
     def __init__(self, *args, **kwargs):
