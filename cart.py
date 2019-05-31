@@ -607,6 +607,7 @@ def add(lang):
             line.shop = SHOP
             line.galatea_user = session.get('user', None)
             line.on_change_product()
+            line.on_change_quantity()
 
             # Create data
             if product_id not in products_in_cart and qty > 0:
