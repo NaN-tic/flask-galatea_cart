@@ -476,13 +476,16 @@ def add(lang):
         for data in request.json:
             if data.get('name'):
                 prod = data.get('name').split('-')
+                if not len(prod) == 2:
+                    continue
+                qty = data.get('value') or 1
                 try:
-                    qty = float(data.get('value'))
-                except:
+                    qty = float(qty)
+                except ValueError:
                     qty = 1
                 try:
                     values[int(prod[1])] = qty
-                except:
+                except IndexError:
                     values[prod[1]] = qty
                     codes.append(prod[1])
 
@@ -492,16 +495,18 @@ def add(lang):
     else:
         for k, v in request.form.items():
             prod = k.split('-')
+            if not len(prod) == 2:
+                continue
             if prod[0] == 'product':
                 try:
                     qty = float(v)
-                except:
+                except ValueError:
                     flash(_('You try to add no numeric quantity. ' \
                         'The request has been stopped.'))
                     return redirect(url_for('.cart', lang=g.language))
                 try:
                     values[int(prod[1])] = qty
-                except:
+                except IndexError:
                     values[prod[1]] = qty
                     codes.append(prod[1])
 
