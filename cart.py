@@ -360,7 +360,12 @@ def confirm(lang):
             shipment_address = Address.esale_create_address(
                 shop, party, values, type='delivery')
 
-    sale = Sale.get_sale_data(party)
+    sale = set_sale()
+    if session.get('b2b'):
+        sale.shipment_party = party
+        sale.on_change_shipment_party()
+    if not sale.party:
+        sale.party = party
     sale.sale_date = Date.today()
     sale.shipment_cost_method = 'order' # force shipment invoice on order
     if invoice_address:
@@ -734,15 +739,17 @@ def checkout(lang):
             return redirect(url_for('.cart', lang=g.language))
 
     sale = set_sale()
-    sale.shop = shop
-    sale.currency = shop.currency
     sale.lines = lines
     sale.on_change_lines()
 
     party = None
     if session.get('customer'):
         party = Party(session.get('customer'))
-        sale.party = party
+        if session.get('b2b'):
+            sale.shipment_party = party
+            sale.on_change_shipment_party()
+        if not sale.party:
+            sale.party = party
     elif not CART_ANONYMOUS:
         flash(_('Please login in to continue the checkout.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
@@ -762,11 +769,10 @@ def checkout(lang):
                 return redirect(url_for('.cart', lang=g.language))
 
     form_sale = SaleForm()
-
     form_party = PartyForm()
     form_party.name.data = request.form.get('invoice_name') or request.form.get('shipment_name')
     form_party.esale_email.data = request.form.get('invoice_email') or request.form.get('shipment_email')
-    form_party.invoice_address.data = request.form.get('invoice_address')
+    form_party.invoice_address.data = request.form.get('invoice_address') or (sale.invoice_address and sale.invoice_address.id)
     form_party.shipment_address.data = request.form.get('shipment_address')
 
     vat_country = request.form.get('vat_country', '')
@@ -829,7 +835,7 @@ def checkout(lang):
     form_invoice_address = InvoiceAddressForm()
     form_invoice_address.invoice_country.choices = countries
 
-    invoice_address = request.form.get('invoice_address')
+    invoice_address = request.form.get('invoice_address') or (sale.invoice_address and sale.invoice_address.id)
     if invoice_address:
         if invoice_address == 'new-address':
             form_invoice_address.invoice_id.data = '' # None
@@ -862,10 +868,10 @@ def checkout(lang):
                 form_invoice_address.invoice_subdivision.data = '%s' % invoice_subdivision
 
         elif party:
-            addresses = Address.search([
-                ('party', '=', party),
-                ('id', '=', int(invoice_address)),
-                ], limit=1)
+            domain = [('id', '=', int(invoice_address))]
+            if not session.get('b2b'):
+                domain.append(('party', '=', party))
+            addresses = Address.search(domain, limit=1)
             if addresses:
                 address, = addresses
 
@@ -1148,8 +1154,11 @@ def cart_list(lang):
 
     # Create a demo sale
     sale = set_sale()
-    sale.shop = shop
-    sale.party = party
+    if session.get('b2b'):
+        sale.shipment_party = party
+        sale.on_change_shipment_party()
+    if not sale.party:
+        sale.party = party
     sale.invoice_address = default_invoice_address
     sale.shipment_address = default_shipment_address
     sale.payment_type = default_payment_type
