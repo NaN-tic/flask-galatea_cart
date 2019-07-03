@@ -1282,11 +1282,12 @@ def clone(lang):
         for key in defaults:
             setattr(line, key, defaults[key])
         line.party = sale.party.id
-        line.quantity = 1
         line.product = product_id
         line.sid = session.sid
         line.galatea_user = session.get('user', None)
         line.on_change_product()
+        if not hasattr(line, 'quantity'):
+            line.quantity = 1
         line.shop = SHOP
         to_create.append(line._save_values)
 
