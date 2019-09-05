@@ -898,6 +898,10 @@ def checkout(lang):
         if not form_invoice_address.validate_on_submit():
             errors.append(_('Error when validate the invoice address. ' \
                 'Please, check the invoice address data.'))
+            for k, v in form_invoice_address.errors.items():
+                errors.append('%s: %s' % (
+                    getattr(form_invoice_address, k).label.text,
+                    ', '.join(v)))
 
     # Shipment Address
     form_shipment_address = ShipmentAddressForm()
@@ -979,6 +983,10 @@ def checkout(lang):
         if not form_shipment_address.validate_on_submit():
             errors.append(_('Error when validate the shipment address. ' \
                 'Please, check the shipment address data.'))
+            for k, v in form_shipment_address.errors.items():
+                errors.append('%s: %s' % (
+                    getattr(form_shipment_address, k).label.text,
+                    ', '.join(v)))
 
     # Apply rules
     if SALE_RULE:
