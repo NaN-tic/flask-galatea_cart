@@ -615,6 +615,7 @@ def add(lang):
 
             # Create data
             if product_id not in products_in_cart and qty > 0:
+                line.on_change_quantity()
                 to_create.append(line._save_values)
             # Update data
             if product_id in products_in_cart:
