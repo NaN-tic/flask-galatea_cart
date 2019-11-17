@@ -440,11 +440,12 @@ def confirm(lang):
         current_app.logger.info('Sale. Create sale %s' % sale.id)
 
     message = _('Successfully created a new order.')
-    if hasattr(sale, 'esale_message') and sale.esale_message:
-        message += " " + sale.esale_message
+    if sale.comment:
+        message += " " + sale.comment
     flash(message, 'success')
 
-    if REDIRECT_TO_PAYMENT_GATEWAY and sale.payment_type.esale_code:
+    if (REDIRECT_TO_PAYMENT_GATEWAY and sale.state not in ('cancel', 'draft')
+            and sale.payment_type.esale_code):
         return render_template('payment.html', sale=sale)
 
     return redirect(url_for('sale.sale', lang=g.language, id=sale.id))
