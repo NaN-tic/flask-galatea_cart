@@ -40,6 +40,7 @@ Country = tryton.pool.get('country.country')
 Subdivision = tryton.pool.get('country.subdivision')
 Carrier = tryton.pool.get('carrier')
 PaymentType = tryton.pool.get('account.payment.type')
+Rule = tryton.pool.get('galatea.esale.rule')
 
 PRODUCT_TYPE_STOCK = ['goods', 'assets']
 
@@ -161,6 +162,7 @@ def my_cart(lang):
 @tryton.transaction()
 def confirm(lang):
     '''Confirm and create a sale'''
+    website = Website(GALATEA_WEBSITE)
     shop = Shop(SHOP)
     data = request.form
 
@@ -399,6 +401,8 @@ def confirm(lang):
     # overwrite to add custom fields from request form data
     sale.set_esale_sale(data)
 
+    sale = Rule.compute_rule(website, sale)
+
     # prevalidate + save sale
     try:
         sale.pre_validate()
@@ -416,9 +420,15 @@ def confirm(lang):
             'Try again or contact us.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
 
-    # Convert draft to quotation
     try:
-        Sale.quote([sale])
+        if sale.state == 'cancel':
+            Sale.cancel([sale])
+            flash(_('We found a rule to cancel the sale. Contact Us.'), 'danger')
+            return redirect(url_for('sale.sale', lang=g.language, id=sale.id))
+        elif sale.state == 'draft':
+            pass
+        else:
+            Sale.quote([sale])
     except UserError as e:
         current_app.logger.info(e)
     except Exception as e:
@@ -429,7 +439,10 @@ def confirm(lang):
     if current_app.debug:
         current_app.logger.info('Sale. Create sale %s' % sale.id)
 
-    flash(_('Successfully created a new order.'), 'success')
+    message = _('Successfully created a new order.')
+    if hasattr(sale, 'esale_message') and sale.esale_message:
+        message += " " + sale.esale_message
+    flash(message, 'success')
 
     if REDIRECT_TO_PAYMENT_GATEWAY and sale.payment_type.esale_code:
         return render_template('payment.html', sale=sale)
@@ -670,12 +683,7 @@ def add(lang):
 @tryton.transaction()
 def checkout(lang):
     '''Checkout sale'''
-    websites = Website.search([
-        ('id', '=', GALATEA_WEBSITE),
-        ], limit=1)
-    if not websites:
-        abort(404)
-    website, = websites
+    website = Website(GALATEA_WEBSITE)
 
     context = {}
     errors = []
