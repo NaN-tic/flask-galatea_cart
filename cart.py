@@ -422,12 +422,14 @@ def confirm(lang):
 
     try:
         if sale.state == 'cancel':
+            sale.state = 'draft'
             Sale.cancel([sale])
             flash(_('We found a rule to cancel the sale. Contact Us.'), 'danger')
             return redirect(url_for('sale.sale', lang=g.language, id=sale.id))
         elif sale.state == 'draft':
             pass
         else:
+            sale.state = 'draft'
             Sale.quote([sale])
     except UserError as e:
         current_app.logger.info(e)
