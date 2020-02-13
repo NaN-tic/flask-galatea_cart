@@ -1022,6 +1022,7 @@ def cart_list(lang):
     website, = websites
 
     shop = Shop(SHOP)
+    countries = [(str(c.id), c.name) for c in shop.esale_countrys]
 
     # Products and lines
     domain = [
@@ -1130,13 +1131,11 @@ def cart_list(lang):
     # Invoice address country options
     form_invoice_address = InvoiceAddressForm(
         country=shop.esale_country.id)
-    countries = [(str(c.id), c.name) for c in shop.esale_countrys]
     form_invoice_address.invoice_country.choices = countries
 
     # Shipment address country options
     form_shipment_address = ShipmentAddressForm(
         country=shop.esale_country.id)
-    countries = [(str(c.id), c.name) for c in shop.esale_countrys]
     form_shipment_address.shipment_country.choices = countries
 
     # Payment types options
