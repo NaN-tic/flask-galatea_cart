@@ -1,3 +1,5 @@
+import csv
+import codecs
 from flask import Blueprint, render_template, current_app, abort, g, url_for, \
     flash, redirect, session, request, jsonify
 from galatea.tryton import tryton
@@ -5,12 +7,21 @@ from galatea.csrf import csrf
 from galatea.utils import thumbnail
 from galatea.helpers import login_required, customer_required
 from flask_babel import gettext as _, ngettext
+from flask_login import current_user
 from trytond.transaction import Transaction
 from trytond.exceptions import UserError
+from werkzeug.utils import secure_filename
 from .forms import SaleForm, PartyForm, ShipmentAddressForm, InvoiceAddressForm
 from decimal import Decimal
 from emailvalid import check_email
 import stdnum.eu.vat as vat
+
+ALLOWED_EXTENSIONS = ['csv']
+try:
+    import openpyxl
+    ALLOWED_EXTENSIONS.append('xlsx')
+except:
+    pass
 
 cart = Blueprint('cart', __name__, template_folder='templates')
 
@@ -25,6 +36,8 @@ MINI_CART_CODE = current_app.config.get('TRYTON_CATALOG_MINI_CART_CODE', False)
 SALE_KIT = current_app.config.get('TRYTON_SALE_KIT', False)
 SALE_RULE = current_app.config.get('TRYTON_SALE_RULE', False)
 REDIRECT_TO_PAYMENT_GATEWAY = current_app.config.get('REDIRECT_TO_PAYMENT_GATEWAY', False)
+GALATEA_CART_FILE = current_app.config.get('TRYTON_GALATEA_CART_FILE', False)
+GALATEA_CART_FILE_LOGIN = current_app.config.get('TRYTON_GALATEA_CART_FILE_LOGIN', True)
 
 Date = tryton.pool.get('ir.date')
 Website = tryton.pool.get('galatea.website')
@@ -517,7 +530,10 @@ def add(lang):
 
     # transform product code to id
     if codes:
-        products = Product.search([('code', 'in', codes)])
+        products = Product.search([
+            ('code', 'in', codes),
+            ('salable', '=', True),
+            ])
         # reset dict
         vals = values.copy()
         values = {}
@@ -621,7 +637,12 @@ def add(lang):
             # Create data
             if product_id not in products_in_cart and qty > 0:
                 line.on_change_quantity()
-                to_create.append(line._save_values)
+                try:
+                    line.pre_validate()
+                    to_create.append(line._save_values)
+                except UserError as e:
+                    flash(e.message, 'danger')
+
             # Update data
             if product_id in products_in_cart:
                 for line in lines:
@@ -629,7 +650,11 @@ def add(lang):
                         if qty > 0:
                             line.quantity = qty
                             line.on_change_quantity()
-                            to_update.extend(([line], line._save_values))
+                            try:
+                                line.pre_validate()
+                                to_update.extend(([line], line._save_values))
+                            except UserError as e:
+                                flash(e.message, 'danger')
                         else: # Remove data when qty <= 0
                             to_remove.append(line)
                         break
@@ -1304,5 +1329,178 @@ def clone(lang):
             '%(num)s product has been added in your cart.',
             '%(num)s products have been added in your cart.',
             len(to_create)), 'success')
+
+    return redirect(url_for('.cart', lang=g.language))
+
+@csrf.exempt
+@cart.route("/cart-file/", methods=["POST"], endpoint="cart-file")
+@tryton.transaction()
+def cart_file(lang):
+    if not GALATEA_CART_FILE:
+        abort(404)
+    if not current_user.is_authenticated and GALATEA_CART_FILE_LOGIN:
+        return current_app.login_manager.unauthorized()
+
+    def allowed_file(filename):
+        if '.' in filename:
+            for ext in ALLOWED_EXTENSIONS:
+                if ext == filename.rsplit('.', 1)[1].lower():
+                    return ext
+
+    file = request.files.get('cart-file')
+
+    if file.filename == '':
+        flash(_('No selected file'))
+        return redirect(url_for('.cart', lang=g.language))
+
+    flines = {}
+    to_create = []
+    to_update = []
+    extension = allowed_file(file.filename)
+
+    if file and extension:
+        filename = secure_filename(file.filename)
+
+        # CSV
+        if extension == 'csv':
+            try:
+                stream = codecs.iterdecode(file.stream, 'utf-8')
+                rows = csv.reader(stream, dialect=csv.excel)
+                next(rows)
+            except:
+                flash(_('Error reading "{filename}" file.').format(
+                    filename=filename), 'danger')
+                return redirect(url_for('.cart', lang=g.language))
+            for row in rows:
+                try:
+                    code = str(row[0])
+                    quantity = float(row[1])
+                    if flines.get(code):
+                        flines[code] += quantity
+                    else:
+                        flines[code] = quantity
+                except (ValueError, TypeError):
+                    flash(_('Error reading format cells in the "{filename}" file.').format(
+                        filename=filename), 'danger')
+                    return redirect(url_for('.cart', lang=g.language))
+        # XLS
+        elif extension == 'xlsx':
+            try:
+                wb = openpyxl.load_workbook(file)
+                sheet = wb.active
+            except:
+                flash(_('Error reading "{filename}" file.').format(
+                    filename=filename), 'danger')
+                return redirect(url_for('.cart', lang=g.language))
+            for row in sheet.iter_rows(values_only=True, min_row=2):
+                try:
+                    code = str(row[0])
+                    quantity = float(row[1])
+                    if flines.get(code):
+                        flines[code] += quantity
+                    else:
+                        flines[code] = quantity
+                except (ValueError, TypeError):
+                    flash(_('Error reading format cells in the "{filename}" file.').format(
+                        filename=filename), 'danger')
+                    return redirect(url_for('.cart', lang=g.language))
+
+        # Search current cart by user or session
+        domain = [
+            ('sale', '=', None),
+            ('shop', '=', SHOP),
+            ('product', '!=', None),
+            ]
+        if session.get('user'): # login user
+            domain.append(['OR',
+                ('sid', '=', session.sid),
+                ('galatea_user', '=', session['user']),
+                ])
+        else: # anonymous user
+            domain.append(
+                ('sid', '=', session.sid),
+                )
+        lines = dict((l.product.code, l) for l in SaleLine.search(domain))
+
+        codes = [k for k, v in flines.items()]
+        products = dict((p.code, p) for p in Product.search([
+            ('code', 'in', codes),
+            ('salable', '=', True),
+            ]))
+        not_found = []
+        if len(codes) != len(products):
+            for code in codes:
+                if not products.get(code):
+                    not_found.append(code)
+                if len(not_found) > 5:
+                    not_found.append('...')
+                    break
+            flash(_('Can not found "{not_found}" products in the "{filename}" file.').format(
+                not_found= ', '.join(not_found), filename=filename), 'danger')
+            return redirect(url_for('.cart', lang=g.language))
+
+        party = None
+        if session.get('customer'):
+            party = Party(session.get('customer'))
+
+        context = {}
+        context['customer'] = session.get('customer', None)
+        if party and getattr(party, 'sale_price_list'):
+            context['price_list'] = party.sale_price_list.id if party.sale_price_list else None
+        with Transaction().set_context(context):
+            for code, qty in flines.items():
+                product = products[code]
+                if lines.get(code):
+                    line = lines.get(code)
+                    line.quantity = round(qty, product.sale_uom.digits)
+                    line.on_change_quantity()
+                    try:
+                        line.pre_validate()
+                        to_update.extend(([line], line._save_values))
+                    except UserError as e:
+                        to_update = [] # reset to_update
+                        flash(e.message, 'danger')
+                        break
+                else:
+                    line = SaleLine()
+                    defaults = line.default_get(line._fields.keys(), with_rec_name=False)
+                    for key in defaults:
+                        setattr(line, key, defaults[key])
+                    line.party = session.get('customer', None)
+                    line.unit = product.sale_uom
+                    line.quantity = round(qty, product.sale_uom.digits)
+                    line.product = product
+                    line.sid = session.sid
+                    line.shop = SHOP
+                    line.galatea_user = session.get('user', None)
+                    line.on_change_product()
+                    line.on_change_quantity()
+                    try:
+                        line.pre_validate()
+                        to_create.append(line._save_values)
+                    except UserError as e:
+                        to_create = [] # reset to_create
+                        flash(e.message, 'danger')
+                        break
+
+        if to_create:
+            # compatibility sale kit
+            with Transaction().set_context(explode_kit=False):
+                SaleLine.create(to_create)
+            flash(ngettext(
+                '%(num)s product has been added in your cart.',
+                '%(num)s products have been added in your cart.',
+                len(to_create)), 'success')
+        if to_update:
+            # compatibility sale kit
+            with Transaction().set_context(explode_kit=False):
+                SaleLine.write(*to_update)
+            total = len(to_update)/2
+            flash(ngettext(
+                '%(num)s product has been updated in your cart.',
+                '%(num)s products have been updated in your cart.',
+                int(total)), 'success')
+    else:
+        flash(_('Can not import selected file'))
 
     return redirect(url_for('.cart', lang=g.language))
