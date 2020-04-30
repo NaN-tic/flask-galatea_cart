@@ -89,6 +89,12 @@ def carriers(lang):
     shop = Shop(SHOP)
     decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
 
+    if country:
+        try:
+            country = int(country)
+        except ValueError:
+            country = None
+
     carriers = Sale.get_esale_carriers(
         shop=shop,
         party=Party(customer) if customer else None,
@@ -480,8 +486,11 @@ def add(lang):
                     qty = float(qty)
                 except ValueError:
                     qty = 1
-                values[prod[1]] = qty
-                codes.append(prod[1])
+                try:
+                    values[int(prod[1])] = qty
+                except ValueError:
+                    values[prod[1]] = qty
+                    codes.append(prod[1])
 
         if not values:
             return jsonify(result=False)
@@ -498,8 +507,11 @@ def add(lang):
                     flash(_('You try to add no numeric quantity. ' \
                         'The request has been stopped.'))
                     return redirect(url_for('.cart', lang=g.language))
-                values[prod[1]] = qty
-                codes.append(prod[1])
+                try:
+                    values[int(prod[1])] = qty
+                except ValueError:
+                    values[prod[1]] = qty
+                    codes.append(prod[1])
 
     # transform product code to id
     if codes:
