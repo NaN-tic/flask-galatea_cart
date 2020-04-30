@@ -87,6 +87,7 @@ def carriers(lang):
     customer = session.get('customer', None)
 
     shop = Shop(SHOP)
+    decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
 
     carriers = Sale.get_esale_carriers(
         shop=shop,
@@ -95,40 +96,18 @@ def carriers(lang):
         tax=Decimal(tax) if tax else 0,
         total=Decimal(total) if total else 0,
         payment=int(payment) if payment else None,
+        address=address,
+        zip=zip,
+        country=country,
         )
 
-    if address or zip:
-        pattern = {}
-        if address and customer:
-            addresses = Address.search([
-                ('party', '=', customer),
-                ('id', '=', address),
-                ], limit=1)
-            if addresses:
-                address, = addresses
-                zip = address.zip
-                country = address.country.id if address.country else None
-        if zip:
-            pattern['shipment_zip'] = zip
-        if country:
-            pattern['to_country'] = country
-
-        zip_carriers = CarrierSelection.get_carriers(pattern)
-        new_carriers = []
-        for c in carriers:
-            if c in zip_carriers:
-                new_carriers.append(c)
-        carriers = new_carriers
-
-    carriers = sorted(carriers, key=lambda k: k.price)
-    decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
-
     return jsonify(result=[{
-        'id': carrier.id,
-        'name': carrier.rec_name,
-        'price':  float(Decimal(decimals % carrier.price)),
-        'price_w_tax': float(Decimal(decimals % carrier.price_w_tax)),
-        } for carrier in carriers])
+        'id': c['carrier'].id,
+        'name': c['carrier'].rec_name,
+        'price':  float(Decimal(decimals % c['price'])),
+        'price_w_tax': float(Decimal(decimals % c['price_w_tax'])),
+        'currency': shop.currency.symbol,
+        } for c in carriers])
 
 @cart.route('/json/my-cart', methods=['GET', 'PUT'], endpoint="my-cart")
 @tryton.transaction()
@@ -501,11 +480,8 @@ def add(lang):
                     qty = float(qty)
                 except ValueError:
                     qty = 1
-                try:
-                    values[int(prod[1])] = qty
-                except IndexError:
-                    values[prod[1]] = qty
-                    codes.append(prod[1])
+                values[prod[1]] = qty
+                codes.append(prod[1])
 
         if not values:
             return jsonify(result=False)
@@ -522,11 +498,8 @@ def add(lang):
                     flash(_('You try to add no numeric quantity. ' \
                         'The request has been stopped.'))
                     return redirect(url_for('.cart', lang=g.language))
-                try:
-                    values[int(prod[1])] = qty
-                except IndexError:
-                    values[prod[1]] = qty
-                    codes.append(prod[1])
+                values[prod[1]] = qty
+                codes.append(prod[1])
 
     # transform product code to id
     if codes:
@@ -1135,12 +1108,16 @@ def cart_list(lang):
             untaxed=untaxed_amount,
             tax=tax_amount,
             total=total_amount,
-            payment=default_payment_type)
+            payment=default_payment_type,
+            address=default_shipment_address,
+            zip=default_shipment_address.zip if default_shipment_address else None,
+            country=default_shipment_address.country if default_shipment_address else None,
+            )
         if party and hasattr(party, 'carrier'):
             if party.carrier:
                 default_carrier = party.carrier
         if not default_carrier and carriers:
-            default_carrier = carriers[0]
+            default_carrier = carriers[0]['carrier']
 
     # Create forms
     form_sale = SaleForm(
@@ -1180,7 +1157,8 @@ def cart_list(lang):
         form_sale.payment_type.default = '%s' % default_payment_type.id
 
     # Carrier options
-    form_sale.carrier.choices = [(str(c.id), c.rec_name) for c in carriers]
+    form_sale.carrier.choices = [
+        (str(c['carrier'].id), c['carrier'].rec_name) for c in carriers]
     if default_carrier:
         form_sale.carrier.default = '%s' % default_carrier.id
 
