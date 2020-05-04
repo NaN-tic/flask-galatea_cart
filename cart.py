@@ -38,6 +38,7 @@ SALE_RULE = current_app.config.get('TRYTON_SALE_RULE', False)
 REDIRECT_TO_PAYMENT_GATEWAY = current_app.config.get('REDIRECT_TO_PAYMENT_GATEWAY', False)
 GALATEA_CART_FILE = current_app.config.get('TRYTON_GALATEA_CART_FILE', False)
 GALATEA_CART_FILE_LOGIN = current_app.config.get('TRYTON_GALATEA_CART_FILE_LOGIN', True)
+GALATEA_CART_FILE_FOUND_LIMIT = current_app.config.get('TRYTON_GALATEA_CART_FILE_FOUND_LIMIT')
 
 Date = tryton.pool.get('ir.date')
 Website = tryton.pool.get('galatea.website')
@@ -1423,21 +1424,36 @@ def cart_file(lang):
         lines = dict((l.product.code, l) for l in SaleLine.search(domain))
 
         codes = [k for k, v in flines.items()]
-        products = dict((p.code, p) for p in Product.search([
-            ('code', 'in', codes),
-            ('salable', '=', True),
-            ]))
+        codes_upper = [c.upper() for c in codes]
+        codes += codes_upper
+        codes += [c.lower() for c in codes]
+        codes = set(codes)
+
+        domain = [('salable', '=', True)]
+        if hasattr(Product, 'customer_code'):
+            domain.append(['OR',
+                        ('customer_code', 'in', codes),
+                        ('code', 'in', codes)])
+        else:
+            domain.append(('code', 'in', codes))
+
+        products = Product.search(domain)
+        products_by_code = dict((p.code.upper(), p) for p in products)
+        if hasattr(Product, 'customer_code'):
+            products_by_code.update(dict((p.customer_code.upper(), p) for p in products if p.customer_code))
+
+        # check products by code/customer_code
         not_found = []
-        if len(codes) != len(products):
-            for code in codes:
-                if not products.get(code):
+        if len(codes_upper) != len(products_by_code):
+            for code in codes_upper:
+                if not products_by_code.get(code):
                     not_found.append(code)
-                if len(not_found) > 5:
+                if (GALATEA_CART_FILE_FOUND_LIMIT
+                        and len(not_found) > GALATEA_CART_FILE_FOUND_LIMIT):
                     not_found.append('...')
                     break
             flash(_('Can not found "{not_found}" products in the "{filename}" file.').format(
                 not_found= ', '.join(not_found), filename=filename), 'danger')
-            return redirect(url_for('.cart', lang=g.language))
 
         party = None
         if session.get('customer'):
@@ -1449,7 +1465,11 @@ def cart_file(lang):
             context['price_list'] = party.sale_price_list.id if party.sale_price_list else None
         with Transaction().set_context(context):
             for code, qty in flines.items():
-                product = products[code]
+                code = code.upper()
+                product = products_by_code.get(code)
+                if not product:
+                    continue
+
                 if lines.get(code):
                     line = lines.get(code)
                     line.quantity = round(qty, product.sale_uom.digits)
@@ -1458,9 +1478,8 @@ def cart_file(lang):
                         line.pre_validate()
                         to_update.extend(([line], line._save_values))
                     except UserError as e:
-                        to_update = [] # reset to_update
                         flash(e.message, 'danger')
-                        break
+                        continue
                 else:
                     line = SaleLine()
                     defaults = line.default_get(line._fields.keys(), with_rec_name=False)
@@ -1479,9 +1498,8 @@ def cart_file(lang):
                         line.pre_validate()
                         to_create.append(line._save_values)
                     except UserError as e:
-                        to_create = [] # reset to_create
                         flash(e.message, 'danger')
-                        break
+                        continue
 
         if to_create:
             # compatibility sale kit
