@@ -931,12 +931,14 @@ def checkout(lang):
             form_shipment_address.shipment_city.data = form_invoice_address.invoice_city.data
             form_shipment_address.shipment_email.data = form_invoice_address.invoice_email.data
             form_shipment_address.shipment_phone.data = form_invoice_address.invoice_phone.data
-            form_shipment_address.shipment_country.label = form_invoice_address.invoice_country.label
-            form_shipment_address.shipment_country.choices = form_invoice_address.invoice_country.choices
-            form_shipment_address.shipment_country.default = form_invoice_address.invoice_country.default
-            form_shipment_address.shipment_subdivision.label = form_invoice_address.invoice_subdivision.label
-            form_shipment_address.shipment_subdivision.choices = form_invoice_address.invoice_subdivision.choices
-            form_shipment_address.shipment_subdivision.default = form_invoice_address.invoice_subdivision.default
+            if hasattr(form_invoice_address.invoice_country, 'choices'):
+                form_shipment_address.shipment_country.label = form_invoice_address.invoice_country.label
+                form_shipment_address.shipment_country.choices = form_invoice_address.invoice_country.choices
+                form_shipment_address.shipment_country.default = form_invoice_address.invoice_country.default
+            if hasattr(form_invoice_address.invoice_subdivision, 'choices'):
+                form_shipment_address.shipment_subdivision.label = form_invoice_address.invoice_subdivision.label
+                form_shipment_address.shipment_subdivision.choices = form_invoice_address.invoice_subdivision.choices
+                form_shipment_address.shipment_subdivision.default = form_invoice_address.invoice_subdivision.default
         elif party:
             addresses = Address.search([
                 ('party', '=', party),
