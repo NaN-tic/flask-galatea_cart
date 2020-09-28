@@ -775,7 +775,7 @@ def checkout(lang):
         payment_type = PaymentType(payment_type_id)
         sale.payment_type = payment_type
 
-        form_sale.payment_type.label = payment_type.name
+        form_sale.payment_type.label.text = payment_type.name
         form_sale.payment_type.choices = [(payment_type_id, payment_type.name)]
         form_sale.payment_type.default = '%s' % payment_type_id
 
@@ -806,7 +806,7 @@ def checkout(lang):
 
         sale.on_change_lines()
 
-        form_sale.carrier.label = carrier.rec_name
+        form_sale.carrier.label.text = carrier.rec_name
         form_sale.carrier.choices = [(carrier_id, carrier.rec_name)]
         form_sale.carrier.default = '%s' % carrier_id
 
@@ -840,14 +840,14 @@ def checkout(lang):
             invoice_country = request.form.get('invoice_country')
             if invoice_country:
                 country = Country(invoice_country)
-                form_invoice_address.invoice_country.label = country.name
+                form_invoice_address.invoice_country.label.text = country.name
                 form_invoice_address.invoice_country.choices = [(country.id, country.name)]
                 form_invoice_address.invoice_country.default = request.form.get('invoice_country')
 
             invoice_subdivision = request.form.get('invoice_subdivision')
             if invoice_subdivision:
                 subdivision = Subdivision(invoice_subdivision)
-                form_invoice_address.invoice_subdivision.label = subdivision.name
+                form_invoice_address.invoice_subdivision.label.text = subdivision.name
                 form_invoice_address.invoice_subdivision.choices = [(subdivision.id, subdivision.name)]
                 form_invoice_address.invoice_subdivision.default = request.form.get('invoice_subdivision')
 
@@ -868,9 +868,10 @@ def checkout(lang):
                 form_invoice_address.invoice_phone.data = address.phone
 
                 if address.country:
+                    form_invoice_address.invoice_country.label.text = address.country.name
                     form_invoice_address.invoice_country.data = '%s' % address.country.id
                 if address.subdivision:
-                    form_invoice_address.invoice_subdivision.label = address.subdivision.name
+                    form_invoice_address.invoice_subdivision.label.text = address.subdivision.name
                     form_invoice_address.invoice_subdivision.choices = [(address.subdivision.id, address.subdivision.name)]
                     form_invoice_address.invoice_subdivision.default = '%s' % address.subdivision.id
             else:
@@ -912,14 +913,14 @@ def checkout(lang):
             shipment_country = request.form.get('shipment_country')
             if shipment_country:
                 country = Country(shipment_country)
-                form_shipment_address.shipment_country.label = country.name
+                form_shipment_address.shipment_country.label.text = country.name
                 form_shipment_address.shipment_country.choices = [(country.id, country.name)]
                 form_shipment_address.shipment_country.default = request.form.get('shipment_country')
 
             shipment_subdivision = request.form.get('shipment_subdivision')
             if shipment_subdivision:
                 subdivision = Subdivision(shipment_subdivision)
-                form_shipment_address.shipment_subdivision.label = subdivision.name
+                form_shipment_address.shipment_subdivision.label.text = subdivision.name
                 form_shipment_address.shipment_subdivision.choices = [(subdivision.id, subdivision.name)]
                 form_shipment_address.shipment_subdivision.default = request.form.get('shipment_subdivision')
         elif shipment_address == 'invoice-address' and invoice_address:
@@ -932,11 +933,11 @@ def checkout(lang):
             form_shipment_address.shipment_email.data = form_invoice_address.invoice_email.data
             form_shipment_address.shipment_phone.data = form_invoice_address.invoice_phone.data
             if hasattr(form_invoice_address.invoice_country, 'choices'):
-                form_shipment_address.shipment_country.label = form_invoice_address.invoice_country.label
+                form_shipment_address.shipment_country.label.text = form_invoice_address.invoice_country.label.text
                 form_shipment_address.shipment_country.choices = form_invoice_address.invoice_country.choices
                 form_shipment_address.shipment_country.default = form_invoice_address.invoice_country.default
             if hasattr(form_invoice_address.invoice_subdivision, 'choices'):
-                form_shipment_address.shipment_subdivision.label = form_invoice_address.invoice_subdivision.label
+                form_shipment_address.shipment_subdivision.label.text = form_invoice_address.invoice_subdivision.label.text
                 form_shipment_address.shipment_subdivision.choices = form_invoice_address.invoice_subdivision.choices
                 form_shipment_address.shipment_subdivision.default = form_invoice_address.invoice_subdivision.default
         elif party:
@@ -955,9 +956,10 @@ def checkout(lang):
                 form_shipment_address.shipment_phone.data = address.phone
 
                 if address.country:
+                    form_shipment_address.shipment_country.label.text = address.country.name
                     form_shipment_address.shipment_country.data = '%s' % address.country.id
                 if address.subdivision:
-                    form_shipment_address.shipment_subdivision.label = address.subdivision.name
+                    form_shipment_address.shipment_subdivision.label.text = address.subdivision.name
                     form_shipment_address.shipment_subdivision.choices = [(address.subdivision.id, address.subdivision.name)]
                     form_shipment_address.shipment_subdivision.default = '%s' % address.subdivision.id
             else:
