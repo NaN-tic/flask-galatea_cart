@@ -278,7 +278,7 @@ def confirm(lang):
             invoice_subdivision = data.get('invoice_subdivision')
             if invoice_subdivision:
                 subdivision = Subdivision(invoice_subdivision)
-                form_invoice_address.invoice_subdivision.label = subdivision.name
+                form_invoice_address.invoice_subdivision.label.text = subdivision.name
                 form_invoice_address.invoice_subdivision.data = '%s' % invoice_subdivision
 
             if not form_invoice_address.validate_on_submit():
@@ -335,7 +335,7 @@ def confirm(lang):
             shipment_subdivision = data.get('shipment_subdivision')
             if shipment_subdivision:
                 subdivision = Subdivision(shipment_subdivision)
-                form_shipment_address.shipment_subdivision.label = subdivision.name
+                form_shipment_address.shipment_subdivision.label.text = subdivision.name
                 form_shipment_address.shipment_subdivision.data = '%s' % shipment_subdivision
 
             if not form_shipment_address.validate_on_submit():
@@ -804,7 +804,7 @@ def checkout(lang):
         payment_type = PaymentType(payment_type_id)
         sale.payment_type = payment_type
 
-        form_sale.payment_type.label = payment_type.name
+        form_sale.payment_type.label.text = payment_type.name
         form_sale.payment_type.choices = [(payment_type_id, payment_type.name)]
         form_sale.payment_type.default = '%s' % payment_type_id
 
@@ -835,7 +835,7 @@ def checkout(lang):
 
         sale.on_change_lines()
 
-        form_sale.carrier.label = carrier.rec_name
+        form_sale.carrier.label.text = carrier.rec_name
         form_sale.carrier.choices = [(carrier_id, carrier.rec_name)]
         form_sale.carrier.default = '%s' % carrier_id
 
@@ -875,7 +875,7 @@ def checkout(lang):
             invoice_subdivision = request.form.get('invoice_subdivision')
             if invoice_subdivision:
                 subdivision = Subdivision(invoice_subdivision)
-                form_invoice_address.invoice_subdivision.label = subdivision.name
+                form_invoice_address.invoice_subdivision.label.text = subdivision.name
                 form_invoice_address.invoice_subdivision.data = '%s' % invoice_subdivision
 
         elif party:
@@ -898,7 +898,7 @@ def checkout(lang):
                     form_invoice_address.invoice_country.choices = [(str(address.country.id), address.country.name)]
                     form_invoice_address.invoice_country.data = '%s' % address.country.id
                 if address.subdivision:
-                    form_invoice_address.invoice_subdivision.label = address.subdivision.name
+                    form_invoice_address.invoice_subdivision.label.text = address.subdivision.name
                     form_invoice_address.invoice_subdivision.data = '%s' % address.subdivision.id
                 else:
                     form_invoice_address.invoice_subdivision.data = ''
@@ -947,7 +947,7 @@ def checkout(lang):
             shipment_subdivision = request.form.get('shipment_subdivision')
             if shipment_subdivision:
                 subdivision = Subdivision(shipment_subdivision)
-                form_shipment_address.shipment_subdivision.label = subdivision.name
+                form_shipment_address.shipment_subdivision.label.text = subdivision.name
                 form_shipment_address.shipment_subdivision.data = shipment_subdivision
         elif shipment_address == 'invoice-address' and invoice_address:
             shipment_address = invoice_address
@@ -963,7 +963,7 @@ def checkout(lang):
                 form_shipment_address.shipment_country.choices = form_invoice_address.invoice_country.choices
                 form_shipment_address.shipment_country.data = form_invoice_address.invoice_country.data
             if form_invoice_address.invoice_subdivision:
-                form_shipment_address.shipment_subdivision.label = form_invoice_address.invoice_subdivision.label
+                form_shipment_address.shipment_subdivision.label.text = form_invoice_address.invoice_subdivision.label.text
                 form_shipment_address.shipment_subdivision.data = form_invoice_address.invoice_subdivision.data
         elif party:
             addresses = Address.search([
@@ -983,7 +983,7 @@ def checkout(lang):
                     form_shipment_address.shipment_country.choices = [(str(address.country.id), address.country.name)]
                     form_shipment_address.shipment_country.data = '%s' % address.country.id
                 if address.subdivision:
-                    form_shipment_address.shipment_subdivision.label = address.subdivision.name
+                    form_shipment_address.shipment_subdivision.label.text = address.subdivision.name
                     form_shipment_address.shipment_subdivision.data = '%s' % address.subdivision.id
                 else:
                     form_shipment_address.shipment_subdivision.data = ''
