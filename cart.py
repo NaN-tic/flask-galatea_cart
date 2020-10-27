@@ -58,27 +58,30 @@ PaymentType = tryton.pool.get('account.payment.type')
 
 PRODUCT_TYPE_STOCK = ['goods', 'assets']
 
-def set_sale():
-    '''Return a sale object with default values and all fields'''
-    sale = Sale()
 
-    sale_fields = Sale._fields.keys()
-    # add default values in sale
-    default_values = Sale.default_get(sale_fields, with_rec_name=False)
-    for k in default_values:
-        setattr(sale, k, default_values[k])
-    # add all sale fields
-    for k in sale_fields:
-        if not hasattr(sale, k):
-            setattr(sale, k, None)
+class Cart(object):
+    '''
+    This object is used to hold the settings used for sale configuration.
+    '''
+    def __init__(self, app=None):
+        self.sale_form = SaleForm
+        self.party_form = PartyForm
+        self.shipment_address_form = ShipmentAddressForm
+        self.invoice_address_form = InvoiceAddressForm
 
-    return sale
+        if app is not None:
+            self.init_app(app)
+
+    def init_app(self, app):
+        if not hasattr(app, 'extensions'):
+            app.extensions = {}
+        app.extensions['Cart'] = self
 
 @cart.route('/carriers', methods=['GET'], endpoint="carriers")
 @tryton.transaction()
 def carriers(lang):
     '''Return all carriers (JSON)'''
-    address = request.args.get('address', None)
+    address_id = request.args.get('address', None)
     zip = request.args.get('zip', None)
     country = request.args.get('country', None)
     untaxed = request.args.get('untaxed', None)
@@ -103,7 +106,7 @@ def carriers(lang):
         tax=Decimal(tax) if tax else 0,
         total=Decimal(total) if total else 0,
         payment=int(payment) if payment else None,
-        address=address,
+        address_id=address_id,
         zip=zip,
         country=country,
         )
@@ -177,6 +180,7 @@ def confirm(lang):
         flash(_('Please login in to continue the checkout.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
 
+    form_sale = current_app.extensions['Cart'].sale_form()
     invoice_address = request.form.get('invoice_address')
     invoice_address = invoice_address if invoice_address != 'None' else None
     shipment_address = request.form.get('shipment_address')
@@ -205,44 +209,34 @@ def confirm(lang):
     if party:
         party = Party(party)
     else:
-        name = data.get('invoice_name') or data.get('shipment_name')
         email = data.get('invoice_email') or data.get('shipment_email')
         vat_country = data.get('vat_country', '')
-        vat_number = data.get('vat_number', '')
+        vat_code = data.get('vat_code', '')
 
         if not check_email(email):
             flash(_('Email "{email}" is not valid.').format(
                 email=email), 'danger')
             return redirect(url_for('.cart', lang=g.language))
 
-        if vat_country and vat_number:
-            vat_code = '%s%s' % (vat_country.upper(), vat_number)
+        if vat_country and vat_code:
+            vat_code = '%s%s' % (vat_country.upper(), vat_code)
             if not vat.is_valid(vat_code):
                 flash(_('We found some errors in your VAT. ' \
                     'Try again or contact us.'), 'danger')
                 return redirect(url_for('.cart', lang=g.language))
 
-        form_party = PartyForm()
-        form_party.invoice_address.choices = [('', '')]
-        form_party.shipment_address.choices = [('', '')]
-        form_party.name.data = name
-        form_party.esale_email.data = email
-        form_party.vat_country.data = vat_country
-        form_party.vat_number.data = vat_number
-        form_party.invoice_address.data = ''
-        form_party.shipment_address.data = ''
-
+        form_party = current_app.extensions['Cart'].party_form()
+        form_party.load()
         if not form_party.validate_on_submit():
-            flash(_('We found some errors in your party data. ' \
-                'Try again or contact us.'), 'danger')
+            errors = [_('We found some errors in your party data:')]
+            for k, v in form_party.errors.items():
+                errors.append('%s: %s' % (getattr(form_party, k).label.text, ', '.join(v)))
+            flash(errors, 'danger')
+
             return redirect(url_for('.cart', lang=g.language))
 
-        party = Party.esale_create_party(shop, {
-            'name': name,
-            'esale_email': email,
-            'vat_country': vat_country,
-            'vat_code': vat_number,
-            })
+        values = form_party.get_party()
+        party = Party.esale_create_party(shop, values)
         session['customer'] = party.id
 
     # Invoice Address
@@ -250,55 +244,20 @@ def confirm(lang):
         if request.form.get('invoice_id'):
             invoice_address = Address(request.form.get('invoice_id'))
         else:
-            name = data.get('invoice_name')
-            street = data.get('invoice_street')
-            city = data.get('invoice_city')
-            zip = data.get('invoice_zip')
-            phone = data.get('invoice_phone')
-            email = data.get('invoice_email')
-
-            form_invoice_address = InvoiceAddressForm(
+            form_invoice_address = current_app.extensions['Cart'].invoice_address_form(
                 invoice_country=request.form.get('invoice_country'),
                 invoice_subdivision=request.form.get('invoice_subdivision'))
-
             form_invoice_address.invoice_id.data = ''
-            form_invoice_address.invoice_name.data = name
-            form_invoice_address.invoice_street.data = street
-            form_invoice_address.invoice_zip.data = zip
-            form_invoice_address.invoice_city.data = city
-            form_invoice_address.invoice_phone.data = phone
-            form_invoice_address.invoice_email.data = email
-
-            invoice_country = data.get('invoice_country')
-            if invoice_country:
-                country = Country(invoice_country)
-                form_invoice_address.invoice_country.choices = [(str(country.id), country.name)]
-                form_invoice_address.invoice_country.data = '%s' % invoice_country
-
-            invoice_subdivision = data.get('invoice_subdivision')
-            if invoice_subdivision:
-                subdivision = Subdivision(invoice_subdivision)
-                form_invoice_address.invoice_subdivision.label.text = subdivision.name
-                form_invoice_address.invoice_subdivision.data = '%s' % invoice_subdivision
+            form_invoice_address.load()
 
             if not form_invoice_address.validate_on_submit():
-                flash(_('We found some errors in your invoice address data. ' \
-                    'Try again or contact us.'), 'danger')
+                errors = [_('We found some errors in your invoice address data:')]
+                for k, v in form_invoice_address.errors.items():
+                    errors.append('%s: %s' % (getattr(form_invoice_address, k).label.text, ', '.join(v)))
+                flash(errors, 'danger')
                 return redirect(url_for('.cart', lang=g.language))
-
-            values = {
-                'name': name,
-                'street': street,
-                'city': city,
-                'zip': zip,
-                'country': country.code,
-                'subdivision': subdivision,
-                'phone': phone,
-                'email': email,
-                'fax': None,
-                }
-            if shipment_address == 'invoice-address':
-                values['delivery'] = True
+            delivery = False if shipment_address != 'invoice-address' else True
+            values = form_invoice_address.get_address(delivery=delivery)
             invoice_address = Address.esale_create_address(
                 shop, party, values, type='invoice')
 
@@ -309,81 +268,22 @@ def confirm(lang):
         elif shipment_address == 'invoice-address':
             shipment_address = invoice_address
         else:
-            name = data.get('shipment_name')
-            street = data.get('shipment_street')
-            city = data.get('shipment_city')
-            zip = data.get('shipment_zip')
-            phone = data.get('shipment_phone')
-            email = data.get('shipment_email')
-
-            form_shipment_address = ShipmentAddressForm()
-
+            form_shipment_address = current_app.extensions['Cart'].shipment_address_form()
             form_shipment_address.shipment_id.data = '' # None
-            form_shipment_address.shipment_name.data = name
-            form_shipment_address.shipment_street.data = street
-            form_shipment_address.shipment_zip.data = zip
-            form_shipment_address.shipment_city.data = city
-            form_shipment_address.shipment_phone.data = phone
-            form_shipment_address.shipment_email.data = email
-
-            shipment_country = data.get('shipment_country')
-            if shipment_country:
-                country = Country(shipment_country)
-                form_shipment_address.shipment_country.choices = [(str(country.id), country.name)]
-                form_shipment_address.shipment_country.data = '%s' % shipment_country
-
-            shipment_subdivision = data.get('shipment_subdivision')
-            if shipment_subdivision:
-                subdivision = Subdivision(shipment_subdivision)
-                form_shipment_address.shipment_subdivision.label.text = subdivision.name
-                form_shipment_address.shipment_subdivision.data = '%s' % shipment_subdivision
+            form_shipment_address.load()
 
             if not form_shipment_address.validate_on_submit():
-                flash(_('We found some errors in your shipment address data. ' \
-                    'Try again or contact us.'), 'danger')
+                errors = [_('We found some errors in your delivery address data:')]
+                for k, v in form_shipment_address.errors.items():
+                    errors.append('%s: %s' % (getattr(form_shipment_address, k).label.text, ', '.join(v)))
+                flash(errors, 'danger')
                 return redirect(url_for('.cart', lang=g.language))
 
-            values = {
-                'name': name,
-                'street': street,
-                'city': city,
-                'zip': zip,
-                'country': country.code,
-                'subdivision': subdivision,
-                'phone': phone,
-                'email': email,
-                'fax': None,
-                }
+            values = form_shipment_address.get_address()
             if not invoice_address:
                 values['invoice'] = True
             shipment_address = Address.esale_create_address(
                 shop, party, values, type='delivery')
-
-    sale = set_sale()
-    if session.get('b2b'):
-        sale.shipment_party = party
-        sale.on_change_shipment_party()
-    if not sale.party:
-        sale.party = party
-    sale.sale_date = Date.today()
-    sale.shipment_cost_method = 'order' # force shipment invoice on order
-    if invoice_address:
-        sale.invoice_address = invoice_address
-    if shipment_address:
-        sale.shipment_address = shipment_address
-
-    # Payment type
-    payment_type = data.get('payment_type')
-    if payment_type:
-        sale.payment_type = int(payment_type)
-
-    # Comment
-    comment = data.get('comment')
-    if comment:
-        sale.comment = comment
-
-    if session.get('user'): # login user
-        sale.galatea_user = session['user']
 
     # explode sale kit
     if SALE_KIT:
@@ -393,14 +293,11 @@ def confirm(lang):
             if kit_lines:
                 lines.extend(kit_lines)
 
-    # Add lines to sale
-    sale.lines = lines
-
-    # Carrier
-    carrier = data.get('carrier')
-    if carrier:
-        sale.carrier = int(carrier)
-        sale.set_shipment_cost() # add shipment line
+    sale = form_sale.get_sale(party=party, lines=lines)
+    if invoice_address:
+        sale.invoice_address = invoice_address
+    if shipment_address:
+        sale.shipment_address = shipment_address
 
     # Apply rules
     if SALE_RULE:
@@ -409,12 +306,6 @@ def confirm(lang):
             rule_lines = sale.apply_rule()
             if rule_lines:
                 sale.lines += tuple(rule_lines,)
-
-    # mark to esale
-    sale.esale = True
-
-    # overwrite to add custom fields from request form data
-    sale.set_esale_sale(data)
 
     # prevalidate + save sale
     try:
@@ -475,6 +366,9 @@ def add(lang):
     values = {}
     codes = []
 
+    default_line = SaleLine.default_get(SaleLine._fields.keys(),
+            with_rec_name=False)
+
     # json request
     if request.json:
         for data in request.json:
@@ -533,14 +427,10 @@ def add(lang):
     # Remove items in cart
     removes = request.form.getlist('remove')
 
-    # Products Current User Cart (products to send)
-    products_current_cart = [k for k,v in values.items()]
-
     # Search current cart by user or session
     domain = [
         ('sale', '=', None),
         ('shop', '=', SHOP),
-        ('product.id', 'in', products_current_cart)
         ]
     if session.get('user'): # login user
         domain.append(['OR',
@@ -560,13 +450,13 @@ def add(lang):
     # Products Current Cart (products available in sale.cart)
     products_in_cart = [l.product.id for l in lines]
 
-    # Get product data
-    products = Product.search([
-        ('id', 'in', products_current_cart),
+    # Get products to add
+    products_by_id = dict((p.id, p) for p in Product.search([
+        ('id', 'in', [k for k, _ in values.items()]),
         ('template.esale_available', '=', True),
         ('template.esale_active', '=', True),
         ('template.shops', 'in', [SHOP]),
-        ])
+        ]))
 
     # Delete products data
     if removes:
@@ -583,12 +473,7 @@ def add(lang):
 
     # Add/Update products data
     for product_id, qty in values.items():
-        product = None
-        for p in products:
-            if p.id == product_id:
-                product = p
-                break
-
+        product = products_by_id.get(product_id)
         if not product or not product.add_cart:
             continue
 
@@ -608,42 +493,48 @@ def add(lang):
         if party and getattr(party, 'sale_price_list'):
             context['price_list'] = party.sale_price_list.id if party.sale_price_list else None
         with Transaction().set_context(context):
-            line = SaleLine()
-            defaults = line.default_get(line._fields.keys(), with_rec_name=False)
-            for key in defaults:
-                setattr(line, key, defaults[key])
-            line.party = session.get('customer', None)
-            line.quantity = qty
-            line.product = product.id
-            line.sid = session.sid
-            line.shop = SHOP
-            line.galatea_user = session.get('user', None)
-            line.on_change_product()
+            products_to_add = dict()
+            if SALE_KIT and product.kit and not product.kit_fixed_list_price:
+                kit_lines = list(product.kit_lines)
+                while kit_lines:
+                    kit_line = kit_lines.pop(0)
+                    products_to_add[kit_line.product] = kit_line.quantity * qty
+            else:
+                products_to_add[product] = qty
+            for product, quantity in products_to_add.items():
+                # Update data
+                if product.id in products_in_cart:
+                    for line in lines:
+                        if line.product.id == product.id:
+                            if quantity > 0:
+                                line.quantity += quantity
+                                line.on_change_quantity()
+                                try:
+                                    line.pre_validate()
+                                    to_update.extend(([line], line._save_values))
+                                except UserError as e:
+                                    flash(e.message, 'danger')
+                            else: # Remove data when qty <= 0
+                                to_remove.append(line)
+                            break
+                else:
+                    line = SaleLine(**default_line)
+                    line.party = session.get('customer', None)
+                    line.quantity = quantity
+                    line.product = product
+                    line.sid = session.sid
+                    line.shop = SHOP
+                    line.galatea_user = session.get('user', None)
+                    line.on_change_product()
 
-            # Create data
-            if product_id not in products_in_cart and qty > 0:
-                line.on_change_quantity()
-                try:
-                    line.pre_validate()
-                    to_create.append(line._save_values)
-                except UserError as e:
-                    flash(e.message, 'danger')
-
-            # Update data
-            if product_id in products_in_cart:
-                for line in lines:
-                    if line.product.id == product_id:
-                        if qty > 0:
-                            line.quantity = qty
-                            line.on_change_quantity()
-                            try:
-                                line.pre_validate()
-                                to_update.extend(([line], line._save_values))
-                            except UserError as e:
-                                flash(e.message, 'danger')
-                        else: # Remove data when qty <= 0
-                            to_remove.append(line)
-                        break
+                    # Create data
+                    if product.id not in products_in_cart and quantity > 0:
+                        line.on_change_quantity()
+                        try:
+                            line.pre_validate()
+                            to_create.append(line._save_values)
+                        except UserError as e:
+                            flash(e.message, 'danger')
 
     # Add to remove older products
     if to_remove_products:
@@ -716,7 +607,7 @@ def checkout(lang):
     context = {}
     errors = []
     shop = Shop(SHOP)
-    countries = [(str(c.id), c.name) for c in shop.esale_countrys]
+    countries = [(c.id, c.name) for c in shop.esale_countrys]
 
     email = request.form.get('invoice_email') or request.form.get('shipment_email')
 
@@ -749,18 +640,19 @@ def checkout(lang):
             flash(_('Your email is already registed user. Please, login in.'), 'danger')
             return redirect(url_for('.cart', lang=g.language))
 
-    sale = set_sale()
-    sale.lines = lines
-    sale.on_change_lines()
+    form_sale = current_app.extensions['Cart'].sale_form()
+    form_sale.load()
 
     party = None
     if session.get('customer'):
         party = Party(session.get('customer'))
+
+    sale = form_sale.get_sale(party=party, lines=lines)
+
+    if party:
         if session.get('b2b'):
             sale.shipment_party = party
             sale.on_change_shipment_party()
-        if not sale.party:
-            sale.party = party
     elif not CART_ANONYMOUS:
         flash(_('Please login in to continue the checkout.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
@@ -779,40 +671,23 @@ def checkout(lang):
                     product=line.product.rec_name, quantity=quantity), 'danger')
                 return redirect(url_for('.cart', lang=g.language))
 
-    form_sale = SaleForm()
-    form_party = PartyForm()
-    form_party.name.data = request.form.get('invoice_name') or request.form.get('shipment_name')
-    form_party.esale_email.data = request.form.get('invoice_email') or request.form.get('shipment_email')
-    form_party.invoice_address.data = request.form.get('invoice_address') or (sale.invoice_address and sale.invoice_address.id)
-    form_party.shipment_address.data = request.form.get('shipment_address')
+    form_party = current_app.extensions['Cart'].party_form()
+    form_party.load()
+    if not form_party.invoice_address.data:
+        form_party.invoice_address.data = sale.invoice_address and str(sale.invoice_address.id)
 
-    vat_country = request.form.get('vat_country', '')
-    vat_number = request.form.get('vat_number', '')
-    if vat_country and vat_number:
-        vat_code = '%s%s' % (vat_country.upper(), vat_number)
+    vat_country = form_party.vat_country.data
+    vat_code = form_party.vat_code.data
+    if vat_country and vat_code:
+        vat_code = '%s%s' % (vat_country.upper(), vat_code)
         if not vat.is_valid(vat_code):
             flash(_('We found some errors in your VAT. ' \
                 'Try again or contact us.'), 'danger')
             return redirect(url_for('.cart', lang=g.language))
-    form_party.vat_country.data = vat_country
-    form_party.vat_number.data = vat_number
-
-    # Payment Type
-    if request.form.get('payment_type'):
-        payment_type_id = request.form.get('payment_type')
-
-        payment_type = PaymentType(payment_type_id)
-        sale.payment_type = payment_type
-
-        form_sale.payment_type.label.text = payment_type.name
-        form_sale.payment_type.choices = [(payment_type_id, payment_type.name)]
-        form_sale.payment_type.default = '%s' % payment_type_id
 
     # Carrier
     if request.form.get('carrier'):
         carrier_id = request.form.get('carrier')
-        form_sale.carrier.default = carrier_id
-
         carrier = Carrier(carrier_id)
         sale.carrier = carrier
 
@@ -835,26 +710,19 @@ def checkout(lang):
 
         sale.on_change_lines()
 
-        form_sale.carrier.label.text = carrier.rec_name
-        form_sale.carrier.choices = [(carrier_id, carrier.rec_name)]
-        form_sale.carrier.default = '%s' % carrier_id
-
-    # Comment
-    form_sale.comment.data = request.form.get('comment')
+        form_sale.carrier.label = carrier.rec_name
+        form_sale.carrier.choices = [(carrier.id, carrier.rec_name)]
+        form_sale.carrier.default = carrier.id
 
     # Invoice Address
-    form_invoice_address = InvoiceAddressForm()
+    form_invoice_address = current_app.extensions['Cart'].invoice_address_form()
     form_invoice_address.invoice_country.choices = countries
 
-    invoice_address = request.form.get('invoice_address') or (sale.invoice_address and sale.invoice_address.id)
+    invoice_address = request.form.get('invoice_address') or sale.invoice_address
     if invoice_address:
         if invoice_address == 'new-address':
             form_invoice_address.invoice_id.data = '' # None
-            form_invoice_address.invoice_name.data = request.form.get('invoice_name')
-            form_invoice_address.invoice_street.data = request.form.get('invoice_street')
-            form_invoice_address.invoice_zip.data = request.form.get('invoice_zip')
-            form_invoice_address.invoice_city.data = request.form.get('invoice_city')
-            form_invoice_address.invoice_phone.data = request.form.get('invoice_phone')
+            form_invoice_address.load()
 
             invoice_email = None
             if request.form.get('invoice_email'):
@@ -869,45 +737,29 @@ def checkout(lang):
             invoice_country = request.form.get('invoice_country')
             if invoice_country:
                 country = Country(invoice_country)
-                form_invoice_address.invoice_country.choices = [(str(country.id), country.name)]
-                form_invoice_address.invoice_country.data = '%s' % invoice_country
+                form_invoice_address.invoice_country.choices = [(country.id, country.name)]
+                form_invoice_address.invoice_country.data = country.id
 
             invoice_subdivision = request.form.get('invoice_subdivision')
-            if invoice_subdivision:
+            if invoice_subdivision and invoice_subdivision != '0':
                 subdivision = Subdivision(invoice_subdivision)
-                form_invoice_address.invoice_subdivision.label.text = subdivision.name
-                form_invoice_address.invoice_subdivision.data = '%s' % invoice_subdivision
-
+                form_invoice_address.invoice_subdivision.label = subdivision.name
+                form_invoice_address.invoice_subdivision.data = invoice_subdivision.id
         elif party:
-            domain = [('id', '=', int(invoice_address))]
+            domain = [('id', '=', invoice_address.id if isinstance(invoice_address, Address) else int(invoice_address))]
             if not session.get('b2b'):
                 domain.append(('party', '=', party))
             addresses = Address.search(domain, limit=1)
             if addresses:
-                address, = addresses
-
-                form_invoice_address.invoice_id.data = address.id
-                form_invoice_address.invoice_name.data = address.name
-                form_invoice_address.invoice_street.data = address.street
-                form_invoice_address.invoice_zip.data = address.zip
-                form_invoice_address.invoice_city.data = address.city
-                form_invoice_address.invoice_email.data = session['email']
-                form_invoice_address.invoice_phone.data = ''
-
-                if address.country:
-                    form_invoice_address.invoice_country.choices = [(str(address.country.id), address.country.name)]
-                    form_invoice_address.invoice_country.data = '%s' % address.country.id
-                if address.subdivision:
-                    form_invoice_address.invoice_subdivision.label.text = address.subdivision.name
-                    form_invoice_address.invoice_subdivision.data = '%s' % address.subdivision.id
-                else:
-                    form_invoice_address.invoice_subdivision.data = ''
+                invoice_address, = addresses
+                form_invoice_address.invoice_id.data = str(invoice_address.id)
+                form_invoice_address.load(address=invoice_address)
             else:
-                errors.append(_('We can not found a related address. ' \
+                errors.append(_('We can not found a related address. '
                     'Please, select a new address in Invoice Address'))
 
         if not form_invoice_address.validate_on_submit():
-            errors.append(_('Error when validate the invoice address. ' \
+            errors.append(_('Error when validate the invoice address. '
                 'Please, check the invoice address data.'))
             for k, v in form_invoice_address.errors.items():
                 errors.append('%s: %s' % (
@@ -915,18 +767,15 @@ def checkout(lang):
                     ', '.join(v)))
 
     # Shipment Address
-    form_shipment_address = ShipmentAddressForm()
+    form_shipment_address = current_app.extensions['Cart'].shipment_address_form()
     form_shipment_address.shipment_country.choices = countries
 
     shipment_address = request.form.get('shipment_address')
+
     if shipment_address:
         if shipment_address == 'new-address':
             form_shipment_address.shipment_id.data = '' # None
-            form_shipment_address.shipment_name.data = request.form.get('shipment_name')
-            form_shipment_address.shipment_street.data = request.form.get('shipment_street')
-            form_shipment_address.shipment_zip.data = request.form.get('shipment_zip')
-            form_shipment_address.shipment_city.data = request.form.get('shipment_city')
-            form_shipment_address.shipment_phone.data = request.form.get('shipment_phone')
+            form_shipment_address.load()
 
             shipment_email = None
             if request.form.get('shipment_email'):
@@ -937,34 +786,12 @@ def checkout(lang):
                 shipment_email = session['email']
             if shipment_email:
                 form_shipment_address.shipment_email.data = shipment_email
-
-            shipment_country = request.form.get('shipment_country')
-            if shipment_country:
-                country = Country(shipment_country)
-                form_shipment_address.shipment_country.choices = [(str(country.id), country.name)]
-                form_shipment_address.shipment_country.data = '%s' % shipment_country
-
-            shipment_subdivision = request.form.get('shipment_subdivision')
-            if shipment_subdivision:
-                subdivision = Subdivision(shipment_subdivision)
-                form_shipment_address.shipment_subdivision.label.text = subdivision.name
-                form_shipment_address.shipment_subdivision.data = shipment_subdivision
         elif shipment_address == 'invoice-address' and invoice_address:
-            shipment_address = invoice_address
             form_shipment_address.shipment_id.data = form_invoice_address.invoice_id.data
-            form_shipment_address.shipment_name.data = form_invoice_address.invoice_name.data
-            form_shipment_address.shipment_street.data = form_invoice_address.invoice_street.data
-            form_shipment_address.shipment_zip.data = form_invoice_address.invoice_zip.data
-            form_shipment_address.shipment_city.data = form_invoice_address.invoice_city.data
-            form_shipment_address.shipment_email.data = form_invoice_address.invoice_email.data
-            form_shipment_address.shipment_phone.data = form_invoice_address.invoice_phone.data
-
-            if form_invoice_address.invoice_country:
-                form_shipment_address.shipment_country.choices = form_invoice_address.invoice_country.choices
-                form_shipment_address.shipment_country.data = form_invoice_address.invoice_country.data
-            if form_invoice_address.invoice_subdivision:
-                form_shipment_address.shipment_subdivision.label.text = form_invoice_address.invoice_subdivision.label.text
-                form_shipment_address.shipment_subdivision.data = form_invoice_address.invoice_subdivision.data
+            if invoice_address == 'new-address':
+                form_shipment_address.load(type_='invoice')
+            else:
+                form_shipment_address.load(address=invoice_address)
         elif party:
             addresses = Address.search([
                 ('party', '=', party),
@@ -972,27 +799,14 @@ def checkout(lang):
                 ], limit=1)
             if addresses:
                 address, = addresses
-                form_shipment_address.shipment_id.data = '%s' % address.id
-                form_shipment_address.shipment_name.data = address.name
-                form_shipment_address.shipment_street.data = address.street
-                form_shipment_address.shipment_zip.data = address.zip
-                form_shipment_address.shipment_city.data = address.city
-                form_shipment_address.shipment_email.data = session.get('email')
-
-                if address.country:
-                    form_shipment_address.shipment_country.choices = [(str(address.country.id), address.country.name)]
-                    form_shipment_address.shipment_country.data = '%s' % address.country.id
-                if address.subdivision:
-                    form_shipment_address.shipment_subdivision.label.text = address.subdivision.name
-                    form_shipment_address.shipment_subdivision.data = '%s' % address.subdivision.id
-                else:
-                    form_shipment_address.shipment_subdivision.data = ''
+                form_shipment_address.shipment_id.data = str(address.id)
+                form_shipment_address.load(address=address)
             else:
-                errors.append(_('We can not found a related address. ' \
+                errors.append(_('We can not found a related address. '
                     'Please, select a new address in shipment Address'))
 
         if not form_shipment_address.validate_on_submit():
-            errors.append(_('Error when validate the shipment address. ' \
+            errors.append(_('Error when validate the shipment address. '
                 'Please, check the shipment address data.'))
             for k, v in form_shipment_address.errors.items():
                 errors.append('%s: %s' % (
@@ -1008,6 +822,8 @@ def checkout(lang):
             rule_lines = sale.apply_rule()
             sale.lines += tuple(rule_lines,)
             sale.on_change_lines()
+
+    form_sale.load()
 
     # Breadcumbs
     breadcrumbs = [{
@@ -1122,7 +938,7 @@ def cart_list(lang):
             tax=tax_amount,
             total=total_amount,
             payment=default_payment_type,
-            address=default_shipment_address,
+            address_id=default_shipment_address,
             zip=default_shipment_address.zip if default_shipment_address else None,
             country=default_shipment_address.country if default_shipment_address else None,
             )
@@ -1133,50 +949,54 @@ def cart_list(lang):
             default_carrier = carriers[0]['carrier']
 
     # Create forms
-    form_sale = SaleForm(
+    form_sale = current_app.extensions['Cart'].sale_form(
         payment_type=default_payment_type.id if default_payment_type else None,
         carrier=default_carrier.id if default_carrier else None)
+    form_sale.load()
 
-    invoice_address_choices = [(str(a.id), a.full_address) for a in invoice_addresses]
+    invoice_address_choices = [(a.id, a.full_address) for a in invoice_addresses]
     invoice_address_choices.append(('new-address', _('New address')))
-    shipment_address_choices = [(str(a.id), a.full_address) for a in shipment_addresses]
+    shipment_address_choices = [(a.id, a.full_address) for a in shipment_addresses]
     if DELIVERY_INVOICE_ADDRESS:
         shipment_address_choices.insert(0, ('invoice-address', _('Delivery to Invoice Address')))
     shipment_address_choices.append(('new-address', _('New address')))
 
-    form_party = PartyForm(
+    form_party = current_app.extensions['Cart'].party_form(
         vat_country=shop.esale_country.code,
         invoice_address=str(default_invoice_address.id) if default_invoice_address else invoice_address_choices[0][0],
         shipment_address=str(default_shipment_address.id) if default_shipment_address else shipment_address_choices[0][0],
         )
+    form_party.load()
     form_party.invoice_address.choices = invoice_address_choices
     form_party.shipment_address.choices = shipment_address_choices
 
     # Invoice address country options
-    form_invoice_address = InvoiceAddressForm(
+    form_invoice_address = current_app.extensions['Cart'].invoice_address_form(
         country=shop.esale_country.id)
     form_invoice_address.invoice_country.choices = countries
+    form_invoice_address.load()
 
     # Shipment address country options
-    form_shipment_address = ShipmentAddressForm(
+    form_shipment_address = current_app.extensions['Cart'].shipment_address_form(
         country=shop.esale_country.id)
     form_shipment_address.shipment_country.choices = countries
+    form_shipment_address.load()
 
     # Payment types options
-    form_sale.payment_type.choices = [(str(p.id), p.name) for p in payment_types]
+    form_sale.payment_type.choices = [(p.id, p.name) for p in payment_types]
     if not default_payment_type and payment_types:
         default_payment_type = payment_types[0]
     if default_payment_type:
-        form_sale.payment_type.default = '%s' % default_payment_type.id
+        form_sale.payment_type.default = default_payment_type.id
 
     # Carrier options
     form_sale.carrier.choices = [
-        (str(c['carrier'].id), c['carrier'].rec_name) for c in carriers]
+        (c['carrier'].id, c['carrier'].rec_name) for c in carriers]
     if default_carrier:
-        form_sale.carrier.default = '%s' % default_carrier.id
+        form_sale.carrier.default = default_carrier.id
 
     # Create a demo sale
-    sale = set_sale()
+    sale = form_sale.get_sale()
     if session.get('b2b'):
         sale.shipment_party = party
         sale.on_change_shipment_party()
