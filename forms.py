@@ -1,10 +1,11 @@
+import stdnum.eu.vat as vat
 from flask import session, request
 from galatea.tryton import tryton
 from flask_babel import lazy_gettext
 from flask_wtf import Form
 from wtforms import (IntegerField, TextAreaField, TextField, SelectField,
         RadioField, validators)
-import stdnum.eu.vat as vat
+from trytond.transaction import Transaction
 
 Party = tryton.pool.get('party.party')
 Address = tryton.pool.get('party.address')
@@ -13,6 +14,7 @@ Subdivision = tryton.pool.get('country.subdivision')
 Sale = tryton.pool.get('sale.sale')
 PaymentType = tryton.pool.get('account.payment.type')
 Date = tryton.pool.get('ir.date')
+Carrier = tryton.pool.get('carrier')
 
 # VAT Countries
 VAT_COUNTRIES = [('', '')]
@@ -96,13 +98,34 @@ class SaleForm(Form):
         if request.endpoint != 'cart.confirm':
             for line in sale.lines:
                 line.sale = sale
-        sale.on_change_lines()
 
         # Carrier
         if request.form.get('carrier'):
-            sale.carrier = int(request.form.get('carrier'))
-            sale.set_shipment_cost() # add shipment line
+            # add shipment line
+            carrier_id = request.form.get('carrier')
+            carrier = Carrier(carrier_id)
+            sale.carrier = carrier
+            sale.on_change_lines()
 
+            # calculate shipment price
+            context = {}
+            context['record'] = sale
+            context['carrier'] = carrier
+            with Transaction().set_context(context):
+                carrier_price = carrier.get_sale_price() # return price, currency
+
+            shipment_price = carrier_price[0]
+            shipment_line = sale.get_shipment_cost_line(shipment_price)
+            shipment_line.unit_price_w_tax = shipment_line.on_change_with_unit_price_w_tax()
+            shipment_line.amount_w_tax = shipment_line.on_change_with_amount_w_tax()
+
+            sale.lines += (shipment_line,)
+
+        extra_lines = sale._get_extra_lines()
+        if extra_lines:
+            sale.lines += tuple(extra_lines)
+
+        sale.on_change_lines()
         return sale
 
 
@@ -176,7 +199,7 @@ class ShipmentAddressForm(Form):
         return True
 
     def load(self, type_='shipment', address=None):
-        self.shipment_name.data = address.name if address else request.form.get('%s_name' % type_)
+        self.shipment_name.data = address.party_name if address else request.form.get('%s_name' % type_)
         self.shipment_street.data = address.street if address else request.form.get('%s_street' % type_)
         self.shipment_zip.data = address.zip if address else request.form.get('%s_zip' % type_)
         self.shipment_city.data = address.city if address else request.form.get('%s_city' % type_)
@@ -253,7 +276,7 @@ class InvoiceAddressForm(Form):
         return True
 
     def load(self, address=None):
-        self.invoice_name.data = address.name if address else request.form.get('invoice_name')
+        self.invoice_name.data = address.party_name if address else request.form.get('invoice_name')
         self.invoice_street.data = address.street if address else request.form.get('invoice_street')
         self.invoice_zip.data = address.zip if address else request.form.get('invoice_zip')
         self.invoice_city.data = address.city if address else request.form.get('invoice_city')

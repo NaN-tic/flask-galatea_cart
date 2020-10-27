@@ -604,7 +604,6 @@ def checkout(lang):
         abort(404)
     website, = websites
 
-    context = {}
     errors = []
     shop = Shop(SHOP)
     countries = [(c.id, c.name) for c in shop.esale_countrys]
@@ -684,35 +683,6 @@ def checkout(lang):
             flash(_('We found some errors in your VAT. ' \
                 'Try again or contact us.'), 'danger')
             return redirect(url_for('.cart', lang=g.language))
-
-    # Carrier
-    if request.form.get('carrier'):
-        carrier_id = request.form.get('carrier')
-        carrier = Carrier(carrier_id)
-        sale.carrier = carrier
-
-        # calculate shipment price
-        context['record'] = sale
-        context['carrier'] = carrier
-        with Transaction().set_context(context):
-            carrier_price = carrier.get_sale_price() # return price, currency
-
-        shipment_price = carrier_price[0]
-        shipment_line = sale.get_shipment_cost_line(shipment_price)
-        shipment_line.unit_price_w_tax = shipment_line.on_change_with_unit_price_w_tax()
-        shipment_line.amount_w_tax = shipment_line.on_change_with_amount_w_tax()
-
-        sale.lines += (shipment_line,)
-
-        extra_lines = sale._get_extra_lines()
-        if extra_lines:
-            sale.lines += tuple(extra_lines)
-
-        sale.on_change_lines()
-
-        form_sale.carrier.label = carrier.rec_name
-        form_sale.carrier.choices = [(carrier.id, carrier.rec_name)]
-        form_sale.carrier.default = carrier.id
 
     # Invoice Address
     form_invoice_address = current_app.extensions['Cart'].invoice_address_form()
@@ -822,6 +792,11 @@ def checkout(lang):
             rule_lines = sale.apply_rule()
             sale.lines += tuple(rule_lines,)
             sale.on_change_lines()
+
+    if request.form.get('carrier'):
+        carrier_id = request.form.get('carrier')
+        carrier = Carrier(carrier_id)
+        form_sale.carrier.label.text = carrier.rec_name
 
     form_sale.load()
 
@@ -1120,18 +1095,15 @@ def clone(lang):
 
     to_create = []
     for product_id in products:
-        line = SaleLine()
-        defaults = line.default_get(line._fields.keys(), with_rec_name=False)
-        for key in defaults:
-            setattr(line, key, defaults[key])
+        defaults = SaleLine.default_get(SaleLine._fields.keys(), with_rec_name=False)
+        line = SaleLine(**defaults)
+        line.shop = SHOP
         line.party = sale.party.id
-        line.product = product_id
         line.sid = session.sid
         line.galatea_user = session.get('user', None)
+        line.quantity = 1
+        line.product = product_id
         line.on_change_product()
-        if not hasattr(line, 'quantity'):
-            line.quantity = 1
-        line.shop = SHOP
         to_create.append(line._save_values)
 
     if to_create:
