@@ -129,6 +129,7 @@ def my_cart(lang):
     domain = [
         ('sale', '=', None),
         ('shop', '=', SHOP),
+        ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
@@ -190,6 +191,7 @@ def confirm(lang):
     domain = [
         ('sale', '=', None),
         ('shop', '=', SHOP),
+        ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
@@ -431,6 +433,7 @@ def add(lang):
     domain = [
         ('sale', '=', None),
         ('shop', '=', SHOP),
+        ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
@@ -498,43 +501,48 @@ def add(lang):
                 kit_lines = list(product.kit_lines)
                 while kit_lines:
                     kit_line = kit_lines.pop(0)
-                    products_to_add[kit_line.product] = kit_line.quantity * qty
+                    products_to_add[kit_line.product.id] = kit_line.quantity * qty
             else:
-                products_to_add[product] = qty
-            for product, quantity in products_to_add.items():
-                # Update data
-                if product.id in products_in_cart:
-                    for line in lines:
-                        if line.product.id == product.id:
-                            if quantity > 0:
-                                line.quantity += quantity
-                                line.on_change_quantity()
-                                try:
-                                    line.pre_validate()
-                                    to_update.extend(([line], line._save_values))
-                                except UserError as e:
-                                    flash(e.message, 'danger')
-                            else: # Remove data when qty <= 0
-                                to_remove.append(line)
-                            break
-                else:
-                    line = SaleLine(**default_line)
-                    line.party = session.get('customer', None)
-                    line.quantity = quantity
-                    line.product = product
-                    line.sid = session.sid
-                    line.shop = SHOP
-                    line.galatea_user = session.get('user', None)
-                    line.on_change_product()
+                products_to_add[product.id] = qty
 
-                    # Create data
-                    if product.id not in products_in_cart and quantity > 0:
+            # update or delete lines
+            for line in lines:
+                if line.product.id in products_to_add:
+                    quantity = products_to_add[line.product.id]
+                    if quantity == line.quantity:
+                        continue
+                    elif quantity > 0:
+                        line.quantity = quantity
                         line.on_change_quantity()
                         try:
                             line.pre_validate()
-                            to_create.append(line._save_values)
+                            to_update.extend(([line], line._save_values))
                         except UserError as e:
                             flash(e.message, 'danger')
+                    else:
+                        # Remove data when qty <= 0
+                        to_remove.append(line)
+                    del products_to_add[line.product.id]
+
+            # create lines
+            for product_id, quantity in products_to_add.items():
+                line = SaleLine(**default_line)
+                line.party = session.get('customer', None)
+                line.quantity = quantity
+                line.product = product
+                line.sid = session.sid
+                line.shop = SHOP
+                line.galatea_user = session.get('user', None)
+                line.on_change_product()
+
+                # Create data
+                if product.id not in products_in_cart and quantity > 0:
+                    line.on_change_quantity()
+                    try:
+                        line.pre_validate()
+                        to_create.append(line._save_values)
+                    except UserError as e:
+                        flash(e.message, 'danger')
 
     # Add to remove older products
     if to_remove_products:
@@ -613,6 +621,7 @@ def checkout(lang):
     domain = [
         ('sale', '=', None),
         ('shop', '=', SHOP),
+        ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
@@ -839,6 +848,7 @@ def cart_list(lang):
     domain = [
         ('sale', '=', None),
         ('shop', '=', SHOP),
+        ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
@@ -1026,6 +1036,7 @@ def cart_pending(lang):
     domain = [
         ('sale', '=', None),
         ('shop', '=', SHOP),
+        ('type', '=', 'line'),
             ['OR',
                 ('party', '=', session['customer']),
                 ('galatea_user', '=', session['user']),
@@ -1076,6 +1087,7 @@ def clone(lang):
     domain = [
         ('sale', '=', None),
         ('shop', '=', SHOP),
+        ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
@@ -1192,6 +1204,7 @@ def cart_file(lang):
         domain = [
             ('sale', '=', None),
             ('shop', '=', SHOP),
+            ('type', '=', 'line'),
             ('product', '!=', None),
             ]
         if session.get('user'): # login user
