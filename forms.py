@@ -88,10 +88,6 @@ class SaleForm(Form):
         if comment:
             sale.comment = comment
         sale.galatea_user = session.get('user')
-        # shipment comment
-        shipment_comment = request.form.get('shipment_comment')
-        if shipment_comment:
-            self.shipment_comment = shipment_comment
 
         sale.lines = lines
         # not set sale in lines because when confirm could be loop recursion (save)
