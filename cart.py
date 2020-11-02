@@ -723,7 +723,7 @@ def checkout(lang):
             if invoice_subdivision and invoice_subdivision != '0':
                 subdivision = Subdivision(invoice_subdivision)
                 form_invoice_address.invoice_subdivision.label = subdivision.name
-                form_invoice_address.invoice_subdivision.data = invoice_subdivision.id
+                form_invoice_address.invoice_subdivision.data = subdivision.id
         elif party:
             domain = [('id', '=', invoice_address.id if isinstance(invoice_address, Address) else int(invoice_address))]
             if not session.get('b2b'):
