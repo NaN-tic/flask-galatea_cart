@@ -529,7 +529,7 @@ def add(lang):
                 line = SaleLine(**default_line)
                 line.party = session.get('customer', None)
                 line.quantity = quantity
-                line.product = product
+                line.product = product_id
                 line.sid = session.sid
                 line.shop = SHOP
                 line.galatea_user = session.get('user', None)
