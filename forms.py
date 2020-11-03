@@ -55,16 +55,6 @@ class SaleForm(Form):
         default_values = Sale.default_get(Sale._fields.keys(),
             with_rec_name=False)
         sale = Sale(**default_values)
-        sale_fields = Sale._fields.keys()
-        # add default values in sale
-        default_values = Sale.default_get(sale_fields, with_rec_name=False)
-        for k in default_values:
-            setattr(sale, k, default_values[k])
-        # add all sale fields
-        for k in sale_fields:
-            if not hasattr(sale, k):
-                setattr(sale, k, None)
-
         sale.esale = True
         if session.get('b2b'):
             sale.shipment_party = party
