@@ -59,8 +59,9 @@ class SaleForm(Form):
         if session.get('b2b'):
             sale.shipment_party = party
             sale.on_change_shipment_party()
-        if not sale.party:
-            sale.party = party
+        else:
+           sale.party = party
+           sale.on_change_party()
 
         sale.sale_date = Date.today()
         sale.shipment_cost_method = 'order' # force shipment invoice on order
