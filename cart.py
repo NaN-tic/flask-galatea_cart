@@ -450,6 +450,9 @@ def add(lang):
     if session.get('customer'):
         party = Party(session.get('customer'))
 
+    form_sale = current_app.extensions['Cart'].sale_form()
+    sale = form_sale.get_sale(party=party)
+
     # Products Current Cart (products available in sale.cart)
     products_in_cart = [l.product.id for l in lines]
 
@@ -509,9 +512,8 @@ def add(lang):
             for line in lines:
                 if line.product.id in products_to_add:
                     quantity = products_to_add[line.product.id]
-                    if quantity == line.quantity:
-                        continue
-                    elif quantity > 0:
+                    # allow show update message in case qty == line.quantity
+                    if (quantity == line.quantity) or (quantity > 0):
                         line.quantity = quantity
                         line.on_change_quantity()
                         try:
@@ -527,7 +529,8 @@ def add(lang):
             # create lines
             for product_id, quantity in products_to_add.items():
                 line = SaleLine(**default_line)
-                line.party = session.get('customer', None)
+                line.sale = sale
+                line.party = party
                 line.quantity = quantity
                 line.product = product_id
                 line.sid = session.sid
@@ -538,6 +541,8 @@ def add(lang):
                 # Create data
                 if product.id not in products_in_cart and quantity > 0:
                     line.on_change_quantity()
+                    # set sale to none
+                    line.sale = None
                     try:
                         line.pre_validate()
                         to_create.append(line._save_values)
