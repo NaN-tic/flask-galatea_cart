@@ -106,7 +106,7 @@ def carriers(lang):
         tax=Decimal(tax) if tax else 0,
         total=Decimal(total) if total else 0,
         payment=int(payment) if payment else None,
-        address_id=address_id,
+        address_id=int(address_id) if address_id else None,
         zip=zip,
         country=country,
         )
