@@ -1009,7 +1009,8 @@ def cart_list(lang):
             for crossell in template.esale_crosssells_by_shop:
                 crossells_ids.add(crossell.id)
         if crossells_ids:
-            crossells = Template.browse(list(crossells_ids)[:LIMIT_CROSSELLS])
+            with Transaction().set_context(without_special_price=True):
+                crossells = Template.browse(list(crossells_ids)[:LIMIT_CROSSELLS])
 
     session['next'] = url_for('.cart', lang=g.language)
 
