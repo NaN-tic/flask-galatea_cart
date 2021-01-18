@@ -18,7 +18,7 @@ Carrier = tryton.pool.get('carrier')
 
 # VAT Countries
 VAT_COUNTRIES = [('', '')]
-for country in vat._country_codes:
+for country in vat.MEMBER_STATES:
     VAT_COUNTRIES.append((country, country.upper()))
 
 
