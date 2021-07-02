@@ -95,8 +95,15 @@ class SaleForm(Form):
             sale.on_change_lines()
 
             # calculate shipment price
+            sale_vals = sale._save_values
+            sale_vals['untaxed_amount'] = sale.untaxed_amount
+            sale_vals['total_amount'] = sale.total_amount
+            if 'lines' in sale_vals:
+                del sale_vals['lines']
+
             context = {}
-            context['record'] = sale
+            context['record'] = sale_vals
+            context['record_model'] = 'sale.sale'
             context['carrier'] = carrier
             with Transaction().set_context(context):
                 carrier_price = carrier.get_sale_price() # return price, currency
