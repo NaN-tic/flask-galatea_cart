@@ -170,7 +170,7 @@ class ShipmentAddressForm(Form):
     shipment_name = TextField(lazy_gettext('Name'))
     shipment_street = TextField(lazy_gettext('Street'), [validators.DataRequired()])
     shipment_city = TextField(lazy_gettext('City'), [validators.DataRequired()])
-    shipment_zip = TextField(lazy_gettext('Zip'), [validators.DataRequired()])
+    shipment_postal_code = TextField(lazy_gettext('Postal Code'), [validators.DataRequired()])
     shipment_country = SelectField(lazy_gettext('Country'), [validators.DataRequired(),], coerce=int)
     shipment_subdivision = IntegerField(lazy_gettext('Subdivision'), [validators.Optional()])
     shipment_email = TextField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
@@ -188,7 +188,7 @@ class ShipmentAddressForm(Form):
     def load(self, type_='shipment', address=None):
         self.shipment_name.data = address.party_name if address else request.form.get('%s_name' % type_)
         self.shipment_street.data = address.street if address else request.form.get('%s_street' % type_)
-        self.shipment_zip.data = address.zip if address else request.form.get('%s_zip' % type_)
+        self.shipment_postal_code.data = address.postal_code if address else request.form.get('%s_postal_code' % type_)
         self.shipment_city.data = address.city if address else request.form.get('%s_city' % type_)
         self.shipment_email.data = session.get('email') or request.form.get('%s_email' % type_)
         self.shipment_phone.data = request.form.get('%s_phone' % type_)
@@ -226,7 +226,7 @@ class ShipmentAddressForm(Form):
             'name': request.form.get('shipment_name'),
             'street': request.form.get('shipment_street'),
             'city': request.form.get('shipment_city'),
-            'zip': request.form.get('shipment_zip'),
+            'postal_code': request.form.get('shipment_postal_code'),
             }
         country = request.form.get('shipment_country')
         if country:
@@ -247,7 +247,7 @@ class InvoiceAddressForm(Form):
     invoice_name = TextField(lazy_gettext('Name'))
     invoice_street = TextField(lazy_gettext('Street'), [validators.DataRequired()])
     invoice_city = TextField(lazy_gettext('City'), [validators.DataRequired()])
-    invoice_zip = TextField(lazy_gettext('Zip'), [validators.DataRequired()])
+    invoice_postal_code = TextField(lazy_gettext('Postal Code'), [validators.DataRequired()])
     invoice_country = SelectField(lazy_gettext('Country'), [validators.DataRequired(),], coerce=int)
     invoice_subdivision = IntegerField(lazy_gettext('Subdivision'), [validators.Optional()])
     invoice_email = TextField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
@@ -265,7 +265,7 @@ class InvoiceAddressForm(Form):
     def load(self, address=None):
         self.invoice_name.data = address.party_name if address else request.form.get('invoice_name')
         self.invoice_street.data = address.street if address else request.form.get('invoice_street')
-        self.invoice_zip.data = address.zip if address else request.form.get('invoice_zip')
+        self.invoice_postal_code.data = address.postal_code if address else request.form.get('invoice_postal_code')
         self.invoice_city.data = address.city if address else request.form.get('invoice_city')
         self.invoice_email.data = session.get('email') or request.form.get('invoice_email')
         self.invoice_phone.data = request.form.get('invoice_phone')
@@ -304,7 +304,7 @@ class InvoiceAddressForm(Form):
             'name': request.form.get('invoice_name'),
             'street': request.form.get('invoice_street'),
             'city': request.form.get('invoice_city'),
-            'zip': request.form.get('invoice_zip'),
+            'postal_code': request.form.get('invoice_postal_code'),
             }
         country = request.form.get('invoice_country')
         if country:
