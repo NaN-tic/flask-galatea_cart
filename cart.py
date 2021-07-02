@@ -82,7 +82,7 @@ class Cart(object):
 def carriers(lang):
     '''Return all carriers (JSON)'''
     address_id = request.args.get('address', None)
-    zip = request.args.get('zip', None)
+    postal_code = request.args.get('postal_code', None)
     country = request.args.get('country', None)
     untaxed = request.args.get('untaxed', None)
     tax = request.args.get('tax', None)
@@ -107,7 +107,7 @@ def carriers(lang):
         total=Decimal(total) if total else 0,
         payment=int(payment) if payment else None,
         address_id=int(address_id) if address_id else None,
-        zip=zip,
+        postal_code=postal_code,
         country=country,
         )
 
@@ -929,7 +929,7 @@ def cart_list(lang):
             total=total_amount,
             payment=default_payment_type,
             address_id=default_shipment_address,
-            zip=default_shipment_address.zip if default_shipment_address else None,
+            postal_code=default_shipment_address.postal_code if default_shipment_address else None,
             country=default_shipment_address.country if default_shipment_address else None,
             )
         if party and hasattr(party, 'carrier'):
