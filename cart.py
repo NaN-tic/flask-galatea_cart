@@ -304,7 +304,7 @@ def confirm(lang):
     # Apply rules
     if SALE_RULE:
         with Transaction().set_context({'apply_rule': False}):
-            sale.coupon = request.form.get('coupon', None)
+            #sale.coupon = request.form.get('coupon', None)
             rule_lines = sale.apply_rule()
             if rule_lines:
                 sale.lines += tuple(rule_lines,)
@@ -800,9 +800,9 @@ def checkout(lang):
     # Apply rules
     if SALE_RULE:
         with Transaction().set_context({'apply_rule': False}):
-            coupon = request.form.get('coupon', None)
-            form_sale.coupon.default = coupon
-            sale.coupon = coupon
+            #coupon = request.form.get('coupon', None)
+            #form_sale.coupon.default = coupon
+            #sale.coupon = coupon
             rule_lines = sale.apply_rule()
             sale.lines += tuple(rule_lines,)
             sale.on_change_lines()
@@ -952,7 +952,7 @@ def cart_list(lang):
     shipment_address_choices.append(('new-address', _('New address')))
 
     form_party = current_app.extensions['Cart'].party_form(
-        vat_country=shop.esale_country.code,
+        vat_country=shop.esale_country.code if shop.esale_country else None,
         invoice_address=str(default_invoice_address.id) if default_invoice_address else invoice_address_choices[0][0],
         shipment_address=str(default_shipment_address.id) if default_shipment_address else shipment_address_choices[0][0],
         )
