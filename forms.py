@@ -3,7 +3,7 @@ from flask import session, request
 from galatea.tryton import tryton
 from flask_babel import lazy_gettext
 from flask_wtf import Form
-from wtforms import (IntegerField, TextAreaField, TextField, SelectField,
+from wtforms import (IntegerField, TextAreaField, StringField, SelectField,
         RadioField, validators)
 from trytond.transaction import Transaction
 
@@ -27,7 +27,7 @@ class SaleForm(Form):
     payment_type = RadioField(lazy_gettext('Payment Type'))
     carrier = RadioField(lazy_gettext('Carrier'))
     comment = TextAreaField(lazy_gettext('Comment'), [])
-    coupon = TextField(lazy_gettext('Coupon'))
+    coupon = StringField(lazy_gettext('Coupon'))
 
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
@@ -125,12 +125,12 @@ class SaleForm(Form):
 
 class PartyForm(Form):
     "Party form"
-    name = TextField(lazy_gettext('Name'), [validators.DataRequired()])
+    name = StringField(lazy_gettext('Name'), [validators.DataRequired()])
     vat_country = SelectField(lazy_gettext('VAT Country'), choices=VAT_COUNTRIES)
-    vat_code = TextField(lazy_gettext('VAT Code'))
+    vat_code = StringField(lazy_gettext('VAT Code'))
     invoice_address = RadioField(lazy_gettext('Invoice Address'), [validators.Optional()])
     shipment_address = RadioField(lazy_gettext('Shipment Address'), [validators.Optional()])
-    esale_email = TextField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
+    esale_email = StringField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
 
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
@@ -173,15 +173,15 @@ class PartyForm(Form):
 
 class ShipmentAddressForm(Form):
     "Shipment Address form"
-    shipment_id = TextField('ID')
-    shipment_name = TextField(lazy_gettext('Name'))
-    shipment_street = TextField(lazy_gettext('Street'), [validators.DataRequired()])
-    shipment_city = TextField(lazy_gettext('City'), [validators.DataRequired()])
-    shipment_postal_code = TextField(lazy_gettext('Postal Code'), [validators.DataRequired()])
+    shipment_id = StringField('ID')
+    shipment_name = StringField(lazy_gettext('Name'))
+    shipment_street = StringField(lazy_gettext('Street'), [validators.DataRequired()])
+    shipment_city = StringField(lazy_gettext('City'), [validators.DataRequired()])
+    shipment_postal_code = StringField(lazy_gettext('Postal Code'), [validators.DataRequired()])
     shipment_country = SelectField(lazy_gettext('Country'), [validators.DataRequired(),], coerce=int)
     shipment_subdivision = IntegerField(lazy_gettext('Subdivision'), [validators.Optional()])
-    shipment_email = TextField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
-    shipment_phone = TextField(lazy_gettext('Phone'))
+    shipment_email = StringField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
+    shipment_phone = StringField(lazy_gettext('Phone'))
 
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
@@ -250,15 +250,15 @@ class ShipmentAddressForm(Form):
 
 class InvoiceAddressForm(Form):
     "Invoice Address form"
-    invoice_id = TextField('ID')
-    invoice_name = TextField(lazy_gettext('Name'))
-    invoice_street = TextField(lazy_gettext('Street'), [validators.DataRequired()])
-    invoice_city = TextField(lazy_gettext('City'), [validators.DataRequired()])
-    invoice_postal_code = TextField(lazy_gettext('Postal Code'), [validators.DataRequired()])
+    invoice_id = StringField('ID')
+    invoice_name = StringField(lazy_gettext('Name'))
+    invoice_street = StringField(lazy_gettext('Street'), [validators.DataRequired()])
+    invoice_city = StringField(lazy_gettext('City'), [validators.DataRequired()])
+    invoice_postal_code = StringField(lazy_gettext('Postal Code'), [validators.DataRequired()])
     invoice_country = SelectField(lazy_gettext('Country'), [validators.DataRequired(),], coerce=int)
     invoice_subdivision = IntegerField(lazy_gettext('Subdivision'), [validators.Optional()])
-    invoice_email = TextField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
-    invoice_phone = TextField(lazy_gettext('Phone'))
+    invoice_email = StringField(lazy_gettext('E-mail'), [validators.DataRequired(), validators.Email()])
+    invoice_phone = StringField(lazy_gettext('Phone'))
 
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
