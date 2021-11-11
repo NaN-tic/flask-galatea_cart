@@ -2,7 +2,7 @@ import stdnum.eu.vat as vat
 from flask import session, request
 from galatea.tryton import tryton
 from flask_babel import lazy_gettext
-from flask_wtf import Form
+from flask_wtf import FlaskForm as Form
 from wtforms import (IntegerField, TextAreaField, StringField, SelectField,
         RadioField, validators)
 from trytond.transaction import Transaction
