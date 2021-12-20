@@ -1,5 +1,5 @@
 import stdnum.eu.vat as vat
-from flask import session, request
+from flask import current_app, request, session
 from galatea.tryton import tryton
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm as Form
@@ -15,6 +15,9 @@ Sale = tryton.pool.get('sale.sale')
 PaymentType = tryton.pool.get('account.payment.type')
 Date = tryton.pool.get('ir.date')
 Carrier = tryton.pool.get('carrier')
+Shop = tryton.pool.get('sale.shop')
+
+SHOP = current_app.config.get('TRYTON_SALE_SHOP')
 
 # VAT Countries
 VAT_COUNTRIES = [('', '')]
@@ -52,10 +55,12 @@ class SaleForm(Form):
             self.carrier.default = request.form.get('carrier')
 
     def get_sale(self, party=None, lines=[]):
+        shop = Shop(SHOP)
         default_values = Sale.default_get(Sale._fields.keys(),
             with_rec_name=False)
         sale = Sale(**default_values)
         sale.esale = True
+        sale.warehouse = shop.warehouse
         if session.get('b2b'):
             sale.shipment_party = party
             sale.on_change_shipment_party()
