@@ -1083,6 +1083,7 @@ def clone(lang):
         return redirect(url_for('.sales', lang=g.language))
 
     sale, = sales
+    shop = sale.shop
 
     products = set()
     sale_lines = sale.get_esale_lines()
@@ -1111,18 +1112,30 @@ def clone(lang):
         if l.product.id in products:
             products.remove(l.product.id)
 
-    to_create = []
-    for product_id in products:
-        defaults = SaleLine.default_get(SaleLine._fields.keys(), with_rec_name=False)
-        line = SaleLine(**defaults)
-        line.shop = SHOP
-        line.party = sale.party.id
-        line.sid = session.sid
-        line.galatea_user = session.get('user', None)
-        line.quantity = 1
-        line.product = product_id
-        line.on_change_product()
-        to_create.append(line._save_values)
+    party = None
+    if session.get('customer'):
+        party = Party(session.get('customer'))
+
+    context = {}
+    context['customer'] = session.get('customer', None)
+    if party and getattr(party, 'sale_price_list'):
+        context['price_list'] = party.sale_price_list.id if party.sale_price_list else None
+    elif shop.price_list:
+        context['price_list'] = shop.price_list.id
+
+    with Transaction().set_context(context):
+        to_create = []
+        for product_id in products:
+            defaults = SaleLine.default_get(SaleLine._fields.keys(), with_rec_name=False)
+            line = SaleLine(**defaults)
+            line.shop = shop
+            line.party = sale.party.id
+            line.sid = session.sid
+            line.galatea_user = session.get('user', None)
+            line.quantity = 1
+            line.product = product_id
+            line.on_change_product()
+            to_create.append(line._save_values)
 
     if to_create:
         SaleLine.create(to_create)
