@@ -60,6 +60,7 @@ class SaleForm(Form):
             with_rec_name=False)
         sale = Sale(**default_values)
         sale.esale = True
+        sale.on_change_shop()
         sale.warehouse = shop.warehouse
         if session.get('b2b'):
             sale.shipment_party = party
@@ -69,7 +70,8 @@ class SaleForm(Form):
            sale.on_change_party()
 
         sale.sale_date = Date.today()
-        sale.shipment_cost_method = 'order' # force shipment invoice on order
+        # set shipment invoice on order
+        sale.shipment_cost_method = 'order'
         # Payment Type
         if request.form.get('payment_type'):
             payment_type_id = request.form.get('payment_type')
