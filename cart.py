@@ -533,9 +533,11 @@ def add(lang):
                 line.party = party
                 line.quantity = quantity
                 line.product = product_id
-                line.sid = session.sid
                 line.shop = SHOP
-                line.galatea_user = session.get('user', None)
+                if session.get('user', None):
+                    line.galatea_user = session['user']
+                else:
+                    line.sid = session.sid
                 line.on_change_product()
 
                 # Create data
