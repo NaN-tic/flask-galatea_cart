@@ -383,6 +383,9 @@ def add(lang):
                     qty = float(qty)
                 except ValueError:
                     qty = 1
+                # in case qty is 0, not add/update line
+                if qty == 0:
+                    continue
                 try:
                     values[int(prod[1])] = qty
                 except ValueError:
@@ -404,6 +407,9 @@ def add(lang):
                     flash(_('You try to add no numeric quantity. ' \
                         'The request has been stopped.'))
                     return redirect(url_for('.cart', lang=g.language))
+                # in case qty is 0, not add/update line
+                if qty == 0:
+                    continue
                 try:
                     values[int(prod[1])] = qty
                 except ValueError:
