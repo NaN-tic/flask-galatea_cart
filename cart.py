@@ -372,7 +372,7 @@ def add(lang):
             with_rec_name=False)
 
     # json request
-    if request.json:
+    if request.is_json:
         for data in request.json:
             if data.get('name'):
                 prod = data.get('name').split('-')
@@ -393,7 +393,10 @@ def add(lang):
                     codes.append(prod[1])
 
         if not values:
-            return jsonify(result=False)
+            return jsonify(result=False, messages={
+                'success': '',
+                'warning': _('Missing products to add'),
+                })
     # post request
     else:
         for k, v in request.form.items():
@@ -596,7 +599,7 @@ def add(lang):
             '%(num)s products have been deleted in your cart.',
             len(to_remove)), 'success')
 
-    if request.json:
+    if request.is_json:
         # Add JSON messages (success, warning)
         success = []
         warning = []
@@ -608,7 +611,6 @@ def add(lang):
         messages = {}
         messages['success'] = ",".join(success)
         messages['warning'] = ",".join(warning)
-
         session.pop('_flashes', None)
         return jsonify(result=True, messages=messages)
     else:
