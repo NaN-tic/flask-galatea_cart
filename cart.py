@@ -970,13 +970,13 @@ def cart_list(lang):
 
     # Invoice address country options
     form_invoice_address = current_app.extensions['Cart'].invoice_address_form(
-        country=shop.esale_country.id if shop.esale_country else None)
+        invoice_country=str(shop.esale_country.id) if shop.esale_country else None)
     form_invoice_address.invoice_country.choices = countries
     form_invoice_address.load()
 
     # Shipment address country options
     form_shipment_address = current_app.extensions['Cart'].shipment_address_form(
-        country=shop.esale_country.id if shop.esale_country else None)
+        shipment_country=shop.esale_country.id if shop.esale_country else None)
     form_shipment_address.shipment_country.choices = countries
     form_shipment_address.load()
 
