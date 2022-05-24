@@ -362,7 +362,7 @@ def add(lang):
 
     cursor = Transaction().connection.cursor()
     if session.get('customer'):
-        lock_id = ('1%%0%sd' % 7 ) % session.get('customer')
+        lock_id = ('1%%0%sd' % 7 ) % session['customer'][:7]
     else:
         lock_id = int('2'+str(uuid.UUID(session.sid).int)[:7])
 
