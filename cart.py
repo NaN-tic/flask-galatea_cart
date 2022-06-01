@@ -1,5 +1,6 @@
 import csv
 import codecs
+import uuid
 from flask import Blueprint, render_template, current_app, abort, g, url_for, \
     flash, redirect, session, request, jsonify
 from galatea.tryton import tryton
@@ -358,6 +359,21 @@ def add(lang):
     if not websites:
         abort(404)
     website, = websites
+
+    cursor = Transaction().connection.cursor()
+
+    if session.get('customer'):
+        lock_id = ('1%%0%sd' % 7 ) % int(str(session['customer'])[:7])
+    else:
+        lock_id = int('2'+str(uuid.UUID(session.sid).int)[:7])
+
+    cursor.execute("SELECT * FROM pg_try_advisory_xact_lock(%s)", (lock_id,))
+    res = cursor.fetchone()
+    if not res[0]:
+        if request.is_json:
+            return jsonify(result=False, messages={})
+        else:
+            return redirect(url_for('.cart', lang=g.language))
 
     to_create = []
     to_update = []
