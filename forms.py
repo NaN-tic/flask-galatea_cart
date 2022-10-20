@@ -1,4 +1,5 @@
 import stdnum.eu.vat as vat
+from decimal import Decimal
 from flask import current_app, request, session
 from galatea.tryton import tryton
 from flask_babel import lazy_gettext
@@ -115,7 +116,7 @@ class SaleForm(Form):
             with Transaction().set_context(context):
                 carrier_price = carrier.get_sale_price() # return price, currency
 
-            shipment_price = carrier_price[0]
+            shipment_price = carrier_price[0] or Decimal('0.0')
             shipment_line = sale.get_shipment_cost_line(shipment_price)
             shipment_line.unit_price_w_tax = shipment_line.on_change_with_unit_price_w_tax()
             shipment_line.amount_w_tax = shipment_line.on_change_with_amount_w_tax()
