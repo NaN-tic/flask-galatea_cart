@@ -897,25 +897,31 @@ def cart_list(lang):
     addresses = []
     shipment_addresses = []
     invoice_addresses = []
-    if session.get('customer'):
-        party = Party(session['customer'])
-        for address in party.addresses:
-            addresses.append(address)
-            if address.delivery:
-                shipment_addresses.append(address)
-            if address.invoice:
-                invoice_addresses.append(address)
-
     default_invoice_address = None
     default_shipment_address = None
+
     if session.get('user'):
         user = GalateaUser(session['user'])
+
+        if session.get('customer'):
+            party = Party(session['customer'])
+            for address in party.addresses:
+                addresses.append(address)
+                if address.invoice and user.display_invoice_address:
+                    invoice_addresses.append(address)
+                if address.delivery and user.display_shipment_address:
+                    shipment_addresses.append(address)
+
         if user.invoice_address:
             default_invoice_address = user.invoice_address
+            if not user.display_invoice_address:
+                invoice_addresses.append(user.invoice_address)
         elif invoice_addresses:
             default_invoice_address = invoice_addresses[0]
         if user.shipment_address:
             default_shipment_address = user.shipment_address
+            if not user.display_shipment_address:
+                shipment_addresses.append(user.shipment_address)
         elif shipment_addresses:
             default_shipment_address = shipment_addresses[0]
 
