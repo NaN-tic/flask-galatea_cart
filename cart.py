@@ -900,6 +900,7 @@ def cart_list(lang):
     default_invoice_address = None
     default_shipment_address = None
 
+    user = None
     if session.get('user'):
         user = GalateaUser(session['user'])
 
@@ -1061,6 +1062,7 @@ def cart_list(lang):
             form_invoice_address=form_invoice_address,
             form_shipment_address=form_shipment_address,
             party=party,
+            user=user,
             sale=sale,
             crossells=crossells,
             stockable=stockable,
