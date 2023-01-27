@@ -728,100 +728,122 @@ def checkout(lang):
     form_invoice_address = current_app.extensions['Cart'].invoice_address_form()
     form_invoice_address.invoice_country.choices = countries
 
-    invoice_address = request.form.get('invoice_address') or sale.invoice_address
-    if invoice_address:
-        if invoice_address == 'new-address':
-            form_invoice_address.invoice_id.data = '' # None
-            form_invoice_address.load()
+    invoice_address = request.form.get('invoice_address') or 'new-address'
+    if invoice_address == 'new-address':
+        form_invoice_address.invoice_id.data = '' # None
+        form_invoice_address.load()
 
-            invoice_email = None
-            if request.form.get('invoice_email'):
-                invoice_email = request.form.get('invoice_email')
-                if not check_email(invoice_email):
-                    errors.append(_('Email not valid.'))
-            elif session.get('email'):
-                invoice_email = session['email']
-            if invoice_email:
-                form_invoice_address.invoice_email.data = invoice_email
+        invoice_email = None
+        if request.form.get('invoice_email'):
+            invoice_email = request.form.get('invoice_email')
+            if not check_email(invoice_email):
+                errors.append(_('Email not valid.'))
+        elif session.get('email'):
+            invoice_email = session['email']
+        if invoice_email:
+            form_invoice_address.invoice_email.data = invoice_email
 
-            invoice_country = request.form.get('invoice_country')
-            if invoice_country:
-                country = Country(invoice_country)
-                form_invoice_address.invoice_country.choices = [(country.id, country.name)]
-                form_invoice_address.invoice_country.data = country.id
+        invoice_country = request.form.get('invoice_country')
+        if invoice_country:
+            country = Country(invoice_country)
+            form_invoice_address.invoice_country.choices = [(country.id, country.name)]
+            form_invoice_address.invoice_country.data = country.id
 
-            invoice_subdivision = request.form.get('invoice_subdivision')
-            if invoice_subdivision and invoice_subdivision != '0':
-                subdivision = Subdivision(invoice_subdivision)
-                form_invoice_address.invoice_subdivision.label = subdivision.name
-                form_invoice_address.invoice_subdivision.data = subdivision.id
-        elif party:
-            domain = [('id', '=', invoice_address.id if isinstance(invoice_address, Address) else int(invoice_address))]
-            if not session.get('b2b'):
-                domain.append(('party', '=', party))
-            addresses = Address.search(domain, limit=1)
-            if addresses:
-                invoice_address, = addresses
-                form_invoice_address.invoice_id.data = str(invoice_address.id)
-                form_invoice_address.load(address=invoice_address)
-            else:
-                errors.append(_('We can not found a related address. '
-                    'Please, select a new address in Invoice Address'))
+        invoice_subdivision = request.form.get('invoice_subdivision')
+        if invoice_subdivision and invoice_subdivision != '0':
+            subdivision = Subdivision(invoice_subdivision)
+            form_invoice_address.invoice_subdivision.label = subdivision.name
+            form_invoice_address.invoice_subdivision.data = subdivision.id
+    elif party:
+        invoice_address_id = -1
+        if isinstance(invoice_address, Address):
+            invoice_address_id = invoice_address.id
+        elif isinstance(invoice_address, int):
+            invoice_address_id = invoice_address
+        else:
+            try:
+                invoice_address_id = int(invoice_address)
+            except ValueError:
+                pass
 
-        if not form_invoice_address.validate_on_submit():
-            errors.append(_('Error when validate the invoice address. '
-                'Please, check the invoice address data.'))
-            for k, v in form_invoice_address.errors.items():
-                errors.append('%s: %s' % (
-                    getattr(form_invoice_address, k).label.text,
-                    ', '.join(v)))
+        domain = [
+            ('id', '=', invoice_address_id),
+            ]
+        if not session.get('b2b'):
+            domain.append(('party', '=', party))
+        addresses = Address.search(domain, limit=1)
+        if addresses:
+            invoice_address, = addresses
+            form_invoice_address.invoice_id.data = str(invoice_address.id)
+            form_invoice_address.load(address=invoice_address)
+        else:
+            errors.append(_('We can not found a related address. '
+                'Please, select a new address in Invoice Address'))
+
+    if not form_invoice_address.validate_on_submit():
+        errors.append(_('Error when validate the invoice address. '
+            'Please, check the invoice address data.'))
+        for k, v in form_invoice_address.errors.items():
+            errors.append('%s: %s' % (
+                getattr(form_invoice_address, k).label.text,
+                ', '.join(v)))
 
     # Shipment Address
     form_shipment_address = current_app.extensions['Cart'].shipment_address_form()
     form_shipment_address.shipment_country.choices = countries
 
-    shipment_address = request.form.get('shipment_address')
+    shipment_address = request.form.get('shipment_address') or 'new-address'
 
-    if shipment_address:
-        if shipment_address == 'new-address':
-            form_shipment_address.shipment_id.data = '' # None
-            form_shipment_address.load()
+    if shipment_address == 'new-address':
+        form_shipment_address.shipment_id.data = '' # None
+        form_shipment_address.load()
 
-            shipment_email = None
-            if request.form.get('shipment_email'):
-                shipment_email = request.form.get('shipment_email')
-                if not check_email(shipment_email):
-                    errors.append(_('Email not valid.'))
-            elif session.get('email'):
-                shipment_email = session['email']
-            if shipment_email:
-                form_shipment_address.shipment_email.data = shipment_email
-        elif shipment_address == 'invoice-address' and invoice_address:
-            form_shipment_address.shipment_id.data = form_invoice_address.invoice_id.data
-            if invoice_address == 'new-address':
-                form_shipment_address.load(type_='invoice')
-            else:
-                form_shipment_address.load(address=invoice_address)
-        elif party:
-            addresses = Address.search([
-                ('party', '=', party),
-                ('id', '=', int(shipment_address)),
-                ], limit=1)
-            if addresses:
-                address, = addresses
-                form_shipment_address.shipment_id.data = str(address.id)
-                form_shipment_address.load(address=address)
-            else:
-                errors.append(_('We can not found a related address. '
-                    'Please, select a new address in shipment Address'))
+        shipment_email = None
+        if request.form.get('shipment_email'):
+            shipment_email = request.form.get('shipment_email')
+            if not check_email(shipment_email):
+                errors.append(_('Email not valid.'))
+        elif session.get('email'):
+            shipment_email = session['email']
+        if shipment_email:
+            form_shipment_address.shipment_email.data = shipment_email
+    elif shipment_address == 'invoice-address' and invoice_address:
+        form_shipment_address.shipment_id.data = form_invoice_address.invoice_id.data
+        if invoice_address == 'new-address':
+            form_shipment_address.load(type_='invoice')
+        else:
+            form_shipment_address.load(address=invoice_address)
+    elif party:
+        shipment_address_id = -1
+        if isinstance(shipment_address, Address):
+            shipment_address_id = shipment_address.id
+        elif isinstance(shipment_address, int):
+            shipment_address_id = shipment_address
+        else:
+            try:
+                shipment_address_id = int(shipment_address)
+            except ValueError:
+                pass
 
-        if not form_shipment_address.validate_on_submit():
-            errors.append(_('Error when validate the shipment address. '
-                'Please, check the shipment address data.'))
-            for k, v in form_shipment_address.errors.items():
-                errors.append('%s: %s' % (
-                    getattr(form_shipment_address, k).label.text,
-                    ', '.join(v)))
+        addresses = Address.search([
+            ('party', '=', party),
+            ('id', '=', shipment_address_id),
+            ], limit=1)
+        if addresses:
+            address, = addresses
+            form_shipment_address.shipment_id.data = str(address.id)
+            form_shipment_address.load(address=address)
+        else:
+            errors.append(_('We can not found a related address. '
+                'Please, select a new address in shipment Address'))
+
+    if not form_shipment_address.validate_on_submit():
+        errors.append(_('Error when validate the shipment address. '
+            'Please, check the shipment address data.'))
+        for k, v in form_shipment_address.errors.items():
+            errors.append('%s: %s' % (
+                getattr(form_shipment_address, k).label.text,
+                ', '.join(v)))
 
     # Apply rules
     if SALE_RULE:
