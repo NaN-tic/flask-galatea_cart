@@ -243,50 +243,48 @@ def confirm(lang):
         session['customer'] = party.id
 
     # Invoice Address
-    if invoice_address:
-        if request.form.get('invoice_id'):
-            invoice_address = Address(request.form.get('invoice_id'))
-        else:
-            form_invoice_address = current_app.extensions['Cart'].invoice_address_form(
-                invoice_country=request.form.get('invoice_country'),
-                invoice_subdivision=request.form.get('invoice_subdivision'))
-            form_invoice_address.invoice_id.data = ''
-            form_invoice_address.load()
+    if request.form.get('invoice_id'):
+        invoice_address = Address(request.form.get('invoice_id'))
+    else:
+        form_invoice_address = current_app.extensions['Cart'].invoice_address_form(
+            invoice_country=request.form.get('invoice_country'),
+            invoice_subdivision=request.form.get('invoice_subdivision'))
+        form_invoice_address.invoice_id.data = ''
+        form_invoice_address.load()
 
-            if not form_invoice_address.validate_on_submit():
-                errors = [_('We found some errors in your invoice address data:')]
-                for k, v in form_invoice_address.errors.items():
-                    errors.append('%s: %s' % (getattr(form_invoice_address, k).label.text, ', '.join(v)))
-                flash(errors, 'danger')
-                return redirect(url_for('.cart', lang=g.language))
-            delivery = False if shipment_address != 'invoice-address' else True
-            values = form_invoice_address.get_address(delivery=delivery)
-            invoice_address = Address.esale_create_address(
-                shop, party, values, type='invoice')
+        if not form_invoice_address.validate_on_submit():
+            errors = [_('We found some errors in your invoice address data:')]
+            for k, v in form_invoice_address.errors.items():
+                errors.append('%s: %s' % (getattr(form_invoice_address, k).label.text, ', '.join(v)))
+            flash(errors, 'danger')
+            return redirect(url_for('.cart', lang=g.language))
+        delivery = False if shipment_address != 'invoice-address' else True
+        values = form_invoice_address.get_address(delivery=delivery)
+        invoice_address = Address.esale_create_address(
+            shop, party, values, type='invoice')
 
     # Shipment Address
-    if shipment_address:
-        if request.form.get('shipment_id'):
-            shipment_address = Address(request.form.get('shipment_id'))
-        elif shipment_address == 'invoice-address':
-            shipment_address = invoice_address
-        else:
-            form_shipment_address = current_app.extensions['Cart'].shipment_address_form()
-            form_shipment_address.shipment_id.data = '' # None
-            form_shipment_address.load()
+    if request.form.get('shipment_id'):
+        shipment_address = Address(request.form.get('shipment_id'))
+    elif shipment_address == 'invoice-address':
+        shipment_address = invoice_address
+    else:
+        form_shipment_address = current_app.extensions['Cart'].shipment_address_form()
+        form_shipment_address.shipment_id.data = '' # None
+        form_shipment_address.load()
 
-            if not form_shipment_address.validate_on_submit():
-                errors = [_('We found some errors in your delivery address data:')]
-                for k, v in form_shipment_address.errors.items():
-                    errors.append('%s: %s' % (getattr(form_shipment_address, k).label.text, ', '.join(v)))
-                flash(errors, 'danger')
-                return redirect(url_for('.cart', lang=g.language))
+        if not form_shipment_address.validate_on_submit():
+            errors = [_('We found some errors in your delivery address data:')]
+            for k, v in form_shipment_address.errors.items():
+                errors.append('%s: %s' % (getattr(form_shipment_address, k).label.text, ', '.join(v)))
+            flash(errors, 'danger')
+            return redirect(url_for('.cart', lang=g.language))
 
-            values = form_shipment_address.get_address()
-            if not invoice_address:
-                values['invoice'] = True
-            shipment_address = Address.esale_create_address(
-                shop, party, values, type='delivery')
+        values = form_shipment_address.get_address()
+        if not invoice_address:
+            values['invoice'] = True
+        shipment_address = Address.esale_create_address(
+            shop, party, values, type='delivery')
 
     # explode sale kit
     if SALE_KIT:
