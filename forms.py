@@ -62,6 +62,7 @@ class SaleForm(Form):
         sale.esale = True
         sale.warehouse = shop.warehouse
         if session.get('b2b'):
+            sale.party = party
             sale.shipment_party = party
             sale.on_change_shipment_party()
         else:

@@ -688,6 +688,7 @@ def checkout(lang):
 
     if party:
         if session.get('b2b'):
+            sale.party = party
             sale.shipment_party = party
             sale.on_change_shipment_party()
     elif not CART_ANONYMOUS:
@@ -1041,6 +1042,7 @@ def cart_list(lang):
     # Create a demo sale
     sale = form_sale.get_sale()
     if session.get('b2b'):
+        sale.party = party
         sale.shipment_party = party
         sale.on_change_shipment_party()
     if not sale.party:
