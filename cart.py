@@ -768,7 +768,7 @@ def checkout(lang):
         domain = [
             ('id', '=', invoice_address_id),
             ]
-        if hasattr(Party, 'party_sale_payer'):
+        if hasattr(Party, 'party_sale_payer') and party.party_sale_payer:
             domain.append(('party', '=', party.party_sale_payer))
         else:
             domain.append(('party', '=', party))
