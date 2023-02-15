@@ -687,7 +687,7 @@ def checkout(lang):
     sale = form_sale.get_sale(party=party, lines=lines)
 
     if party:
-        if session.get('b2b'):
+        if session.get('b2b') or hasattr(Party, 'party_sale_payer'):
             sale.party = party
             sale.shipment_party = party
             sale.on_change_shipment_party()
@@ -768,7 +768,9 @@ def checkout(lang):
         domain = [
             ('id', '=', invoice_address_id),
             ]
-        if not session.get('b2b'):
+        if hasattr(Party, 'party_sale_payer'):
+            domain.append(('party', '=', party.party_sale_payer))
+        else:
             domain.append(('party', '=', party))
         addresses = Address.search(domain, limit=1)
         if addresses:
@@ -1041,7 +1043,7 @@ def cart_list(lang):
 
     # Create a demo sale
     sale = form_sale.get_sale()
-    if session.get('b2b'):
+    if session.get('b2b') or hasattr(Party, 'party_sale_payer'):
         sale.party = party
         sale.shipment_party = party
         sale.on_change_shipment_party()
