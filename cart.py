@@ -294,9 +294,7 @@ def confirm(lang):
             if kit_lines:
                 lines.extend(kit_lines)
 
-    sale = form_sale.get_sale(party=party, lines=lines)
-    if party and hasattr(Sale, 'price_list') and party.sale_price_list:
-        sale.price_list = party.sale_price_list
+    sale = form_sale.get_sale(party=party, lines=lines, step='confirm')
     if invoice_address:
         sale.invoice_address = invoice_address
     if shipment_address:
@@ -476,9 +474,7 @@ def add(lang):
         party = Party(session.get('customer'))
 
     form_sale = current_app.extensions['Cart'].sale_form()
-    sale = form_sale.get_sale(party=party)
-    if party and hasattr(Sale, 'price_list') and party.sale_price_list:
-        sale.price_list = party.sale_price_list
+    sale = form_sale.get_sale(party=party, step='add')
 
     # Products Current Cart (products available in sale.cart)
     products_in_cart = [l.product.id for l in lines]
@@ -688,7 +684,7 @@ def checkout(lang):
     if session.get('customer'):
         party = Party(session.get('customer'))
 
-    sale = form_sale.get_sale(party=party, lines=lines)
+    sale = form_sale.get_sale(party=party, lines=lines, step='checkout')
 
     if party:
         if session.get('b2b') or hasattr(Party, 'party_sale_payer'):
@@ -1046,7 +1042,7 @@ def cart_list(lang):
         form_sale.carrier.default = default_carrier.id
 
     # Create a demo sale
-    sale = form_sale.get_sale()
+    sale = form_sale.get_sale(party=party, step='list')
     if session.get('b2b') or hasattr(Party, 'party_sale_payer'):
         sale.party = party
         sale.shipment_party = party
