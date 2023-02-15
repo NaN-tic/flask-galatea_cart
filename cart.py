@@ -295,6 +295,8 @@ def confirm(lang):
                 lines.extend(kit_lines)
 
     sale = form_sale.get_sale(party=party, lines=lines)
+    if party and hasattr(Sale, 'price_list') and party.sale_price_list:
+        sale.price_list = party.sale_price_list
     if invoice_address:
         sale.invoice_address = invoice_address
     if shipment_address:
@@ -475,6 +477,8 @@ def add(lang):
 
     form_sale = current_app.extensions['Cart'].sale_form()
     sale = form_sale.get_sale(party=party)
+    if party and hasattr(Sale, 'price_list') and party.sale_price_list:
+        sale.price_list = party.sale_price_list
 
     # Products Current Cart (products available in sale.cart)
     products_in_cart = [l.product.id for l in lines]
