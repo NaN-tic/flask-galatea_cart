@@ -479,13 +479,16 @@ def add(lang):
     # Products Current Cart (products available in sale.cart)
     products_in_cart = [l.product.id for l in lines]
 
-    # Get products to add
-    products_by_id = dict((p.id, p) for p in Product.search([
+    domain = [
         ('id', 'in', [k for k, _ in values.items()]),
         ('template.esale_available', '=', True),
         ('template.esale_active', '=', True),
         ('template.shops', 'in', [SHOP]),
-        ]))
+        ]
+    if session.get('hidden_products'):
+        domain += [('template.id', 'not in', session.get('hidden_products'))]
+    # Get products to add
+    products_by_id = dict((p.id, p) for p in Product.search(domain))
 
     # Delete products data
     if removes:
