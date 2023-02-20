@@ -54,14 +54,15 @@ class SaleForm(Form):
         if request.form.get('carrier'):
             self.carrier.default = request.form.get('carrier')
 
-    def get_sale(self, party=None, lines=[]):
+    def get_sale(self, party=None, lines=[], step=None):
         shop = Shop(SHOP)
         default_values = Sale.default_get(Sale._fields.keys(),
             with_rec_name=False)
         sale = Sale(**default_values)
         sale.esale = True
         sale.warehouse = shop.warehouse
-        if session.get('b2b'):
+        if session.get('b2b') or hasattr(Party, 'party_sale_payer'):
+            sale.party = party
             sale.shipment_party = party
             sale.on_change_shipment_party()
         else:
