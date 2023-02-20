@@ -294,7 +294,7 @@ def confirm(lang):
             if kit_lines:
                 lines.extend(kit_lines)
 
-    sale = form_sale.get_sale(party=party, lines=lines)
+    sale = form_sale.get_sale(party=party, lines=lines, step='confirm')
     if invoice_address:
         sale.invoice_address = invoice_address
     if shipment_address:
@@ -471,7 +471,7 @@ def add(lang):
         party = Party(session.get('customer'))
 
     form_sale = current_app.extensions['Cart'].sale_form()
-    sale = form_sale.get_sale(party=party)
+    sale = form_sale.get_sale(party=party, step='add')
 
     # Products Current Cart (products available in sale.cart)
     products_in_cart = [l.product.id for l in lines]
@@ -685,10 +685,11 @@ def checkout(lang):
     if session.get('customer'):
         party = Party(session.get('customer'))
 
-    sale = form_sale.get_sale(party=party, lines=lines)
+    sale = form_sale.get_sale(party=party, lines=lines, step='checkout')
 
     if party:
-        if session.get('b2b'):
+        if session.get('b2b') or hasattr(Party, 'party_sale_payer'):
+            sale.party = party
             sale.shipment_party = party
             sale.on_change_shipment_party()
     elif not CART_ANONYMOUS:
@@ -768,7 +769,9 @@ def checkout(lang):
         domain = [
             ('id', '=', invoice_address_id),
             ]
-        if not session.get('b2b'):
+        if hasattr(Party, 'party_sale_payer') and party.party_sale_payer:
+            domain.append(('party', '=', party.party_sale_payer))
+        else:
             domain.append(('party', '=', party))
         addresses = Address.search(domain, limit=1)
         if addresses:
@@ -1040,8 +1043,9 @@ def cart_list(lang):
         form_sale.carrier.default = default_carrier.id
 
     # Create a demo sale
-    sale = form_sale.get_sale()
-    if session.get('b2b'):
+    sale = form_sale.get_sale(party=party, step='list')
+    if session.get('b2b') or hasattr(Party, 'party_sale_payer'):
+        sale.party = party
         sale.shipment_party = party
         sale.on_change_shipment_party()
     if not sale.party:
