@@ -386,7 +386,7 @@ def add(lang):
             with_rec_name=False)
 
     # json request
-    if request.json:
+    if request.is_json:
         for data in request.json:
             if data.get('name'):
                 prod = data.get('name').split('-')
@@ -613,7 +613,7 @@ def add(lang):
             '%(num)s products have been deleted in your cart.',
             len(to_remove)), 'success')
 
-    if request.json:
+    if request.is_json:
         # Add JSON messages (success, warning)
         success = []
         warning = []
