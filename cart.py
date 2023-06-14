@@ -1118,7 +1118,7 @@ def clone(lang):
     id = request.form.get('id')
     if not id:
         flash(_('Error when clone. Select a sale to clone.'), "danger")
-        return redirect(url_for('.sales', lang=g.language))
+        return redirect(url_for('.cart', lang=g.language))
 
     sales = Sale.search([
         ('id', '=', id),
@@ -1127,7 +1127,7 @@ def clone(lang):
         ], limit=1)
     if not sales:
         flash(_('Error when clone. You not have permisions to clone.'), "danger")
-        return redirect(url_for('.sales', lang=g.language))
+        return redirect(url_for('.cart', lang=g.language))
 
     sale, = sales
     shop = sale.shop
