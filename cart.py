@@ -513,7 +513,7 @@ def add(lang):
             else:
                 quantity = product.esale_quantity
             if product.type in PRODUCT_TYPE_STOCK and not (quantity > 0 and qty <= quantity):
-                flash(_('Not enought stock for the product "{product}" (maximun: {quantity} units).').format(
+                flash(_('Not enough stock for the product "{product}" (maximun: {quantity} units).').format(
                     product=product.rec_name, quantity=quantity), 'danger')
                 continue
 
