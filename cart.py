@@ -96,7 +96,7 @@ def carriers(lang):
 
     if country:
         try:
-            country = int(country)
+            country = Country(int(country))
         except ValueError:
             country = None
 
