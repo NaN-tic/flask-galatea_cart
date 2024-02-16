@@ -94,7 +94,7 @@ def carriers(lang):
     shop = Shop(SHOP)
     decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
 
-    if country:
+    if country is not None:
         try:
             country = Country(int(country))
         except ValueError:
