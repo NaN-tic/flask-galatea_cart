@@ -111,7 +111,6 @@ def carriers(lang):
         postal_code=postal_code,
         country=country,
         )
-
     return jsonify(result=[{
         'id': c['carrier'].id,
         'name': c['carrier'].rec_name,
@@ -381,13 +380,31 @@ def add(lang):
     # Convert form values to dict values {'id': 'qty'}
     values = {}
     codes = []
+    coupon = None
 
     default_line = SaleLine.default_get(SaleLine._fields.keys(),
             with_rec_name=False)
 
     # json request
     if request.is_json:
+        type_found = False
         for data in request.json:
+            # Remove type give the line_id to delete, the delte function only
+            # delte one line by each line
+            if data.get('type'):
+                match data.get('type'):
+                    case 'remove':
+                        if data.get('id'):
+                            # Serarch if line exist and add to "to_remove" list
+                            sale_line = SaleLine.search([
+                                ('id', '=', int(data.get('id')))])
+                            if sale_line:
+                                to_remove.append(sale_line[0])
+                                type_found = True
+                    case 'coupon':
+                        if data.get('promo_codes'):
+                            coupon = data.get('promo_codes')['coupon']
+                            type_found = True
             if data.get('name'):
                 prod = data.get('name').split('-')
                 if not len(prod) == 2:
@@ -406,8 +423,9 @@ def add(lang):
                     values[prod[1]] = qty
                     codes.append(prod[1])
 
-        if not values:
-            return jsonify(result=False)
+        if not type_found:
+            if not values:
+                return jsonify(result=False)
     # post request
     else:
         for k, v in request.form.items():
@@ -592,6 +610,8 @@ def add(lang):
             '%(num)s products have been added in your cart.',
             len(to_create)), 'success')
 
+
+
     # Update Cart
     if to_update:
         # compatibility sale kit
@@ -613,6 +633,43 @@ def add(lang):
             '%(num)s products have been deleted in your cart.',
             len(to_remove)), 'success')
 
+    domain = [
+        ('sale', '=', None),
+        ('shop', '=', SHOP),
+        ('type', '=', 'line'),
+        ]
+    if session.get('user'): # login user
+        domain.append(['OR',
+            ('sid', '=', session.sid),
+            ('galatea_user', '=', session['user']),
+            ])
+    else: # anonymous user
+        domain.append(
+            ('sid', '=', session.sid),
+            )
+
+    # Apply Rules to Cart, this function only returnos the total discount amount
+    # The checkout function set the final discount line
+    if SALE_RULE and coupon and request.is_json:
+        sale_lines = SaleLine.search(domain)
+        for sale_line in sale_lines:
+            sale_line.sale = sale
+        sale.lines += tuple(sale_lines,)
+        with Transaction().set_context({'apply_rule': False, 'explode_kit':False}):
+            form_sale.coupon.default = coupon
+            sale.coupon = coupon
+            # Save the sale with the lines
+            sale.save()
+            # Apply rule
+            rule_lines = sale.apply_rule()
+            for sale_line in sale_lines:
+                sale_line.sale = None
+            SaleLine.save(sale_lines)
+            # Remove sale form rule_lines
+            total_discount = Decimal(0)
+            for rule_line in rule_lines:
+                total_discount += sale.currency.round(rule_line.unit_price)
+
     if request.is_json:
         # Add JSON messages (success, warning)
         success = []
@@ -625,6 +682,8 @@ def add(lang):
         messages = {}
         messages['success'] = ",".join(success)
         messages['warning'] = ",".join(warning)
+        if SALE_RULE and coupon:
+            messages['discount'] = total_discount
 
         session.pop('_flashes', None)
         return jsonify(result=True, messages=messages)
