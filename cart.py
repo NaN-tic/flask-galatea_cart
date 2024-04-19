@@ -153,6 +153,7 @@ def my_cart(lang):
             image = thumbnail(filename, thumbname, '200x200')
         items.append({
             'id': line.id,
+            'id_product': line.product.id,
             'name': line.product.code if MINI_CART_CODE else line.product.rec_name,
             'url': url_for('catalog.product_'+g.language, lang=g.language,
                 slug=line.product.template.esale_slug),
