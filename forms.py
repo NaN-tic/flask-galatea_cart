@@ -118,7 +118,7 @@ class SaleForm(Form):
                 carrier_price = carrier.get_sale_price() # return price, currency
 
             shipment_price = carrier_price[0] or Decimal('0.0')
-            shipment_line = sale.get_shipment_cost_line(shipment_price)
+            shipment_line = sale.get_shipment_cost_line(sale.carrier, shipment_price)
             shipment_line.unit_price_w_tax = shipment_line.on_change_with_unit_price_w_tax()
             shipment_line.amount_w_tax = shipment_line.on_change_with_amount_w_tax()
 
