@@ -30,6 +30,8 @@ GALATEA_WEBSITE = current_app.config.get('TRYTON_GALATEA_SITE')
 SHOP = current_app.config.get('TRYTON_SALE_SHOP')
 SHOPS = current_app.config.get('TRYTON_SALE_SHOPS')
 DELIVERY_INVOICE_ADDRESS = current_app.config.get('TRYTON_SALE_DELIVERY_INVOICE_ADDRESS', True)
+CART_INVOICE_FULLNAME = current_app.config.get('TRYTON_SALE_INVOICE_ADDRESS_FULLNAME', False)
+CART_DELIVERY_FULLNAME = current_app.config.get('TRYTON_SALE_DELIVERY_ADDRESS_FULLNAME', False)
 CART_ANONYMOUS = current_app.config.get('TRYTON_CART_ANONYMOUS', True)
 CART_CROSSSELLS = current_app.config.get('TRYTON_CART_CROSSSELLS', True)
 LIMIT_CROSSELLS = current_app.config.get('TRYTON_CATALOG_LIMIT_CROSSSELLS', 10)
@@ -1049,9 +1051,29 @@ def cart_list(lang):
         carrier=default_carrier.id if default_carrier else None)
     form_sale.load()
 
-    invoice_address_choices = [(a.id, a.full_address) for a in invoice_addresses]
+    if CART_INVOICE_FULLNAME:
+        invoice_address_choices = []
+        for invoice_address in invoice_addresses:
+            if invoice_address.party_name:
+                invoice_address_choices.append((invoice_address.id,
+                    f'{invoice_address.full_address} - {invoice_address.party_name}'))
+            else:
+                invoice_address_choices.append((invoice_address.id,
+                    invoice_address.full_address))
+    else:
+        invoice_address_choices = [(a.id, a.full_address) for a in invoice_addresses]
     invoice_address_choices.append(('new-address', _('New address')))
-    shipment_address_choices = [(a.id, a.full_address) for a in shipment_addresses]
+    if CART_DELIVERY_FULLNAME:
+        shipment_address_choices = []
+        for shipment_address in shipment_addresses:
+            if shipment_address.party_name:
+                shipment_address_choices.append((shipment_address.id,
+                    f'{shipment_address.full_address} - {shipment_address.party_name}'))
+            else:
+                shipment_address_choices.append((shipment_address.id,
+                    shipment_address.full_address))
+    else:
+        shipment_address_choices = [(a.id, a.full_address) for a in shipment_addresses]
     if DELIVERY_INVOICE_ADDRESS:
         shipment_address_choices.insert(0, ('invoice-address', _('Delivery to Invoice Address')))
     shipment_address_choices.append(('new-address', _('New address')))
