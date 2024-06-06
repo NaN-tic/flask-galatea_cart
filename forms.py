@@ -73,7 +73,7 @@ class SaleForm(Form):
 
         sale.sale_date = Date.today()
         # set shipment invoice on order
-        sale.shipment_cost_method = 'order'
+        sale.shipment_cost_method = None
         # Payment Type
         if request.form.get('payment_type'):
             payment_type_id = request.form.get('payment_type')
@@ -100,6 +100,7 @@ class SaleForm(Form):
             # add shipment line
             carrier_id = request.form.get('carrier')
             carrier = Carrier(carrier_id)
+            sale.shipment_cost_method = Sale.default_shipment_cost_method() or 'order'
             sale.carrier = carrier
             sale.on_change_lines()
 
