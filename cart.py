@@ -784,6 +784,7 @@ def checkout(lang):
             form_invoice_address.invoice_id.data = str(invoice_address.id)
             form_invoice_address.load(address=invoice_address)
         else:
+            invoice_address = None
             errors.append(_('We can not found a related address. '
                 'Please, select a new address in Invoice Address'))
 
