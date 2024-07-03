@@ -40,6 +40,7 @@ REDIRECT_TO_PAYMENT_GATEWAY = current_app.config.get('REDIRECT_TO_PAYMENT_GATEWA
 GALATEA_CART_FILE = current_app.config.get('TRYTON_GALATEA_CART_FILE', False)
 GALATEA_CART_FILE_LOGIN = current_app.config.get('TRYTON_GALATEA_CART_FILE_LOGIN', True)
 GALATEA_CART_FILE_FOUND_LIMIT = current_app.config.get('TRYTON_GALATEA_CART_FILE_FOUND_LIMIT')
+SALE_STATE_EXCLUDE = current_app.config.get('TRYTON_SALE_STATE_EXCLUDE', [])
 
 Date = tryton.pool.get('ir.date')
 Website = tryton.pool.get('galatea.website')
@@ -330,10 +331,14 @@ def confirm(lang):
         Sale.quote([sale])
     except UserError as e:
         current_app.logger.info(e)
+        flash(_('We found some errors when quote your sale. Contact Us.'), 'danger')
+        sale_redirect = 'sale.sale' if 'draft' not in SALE_STATE_EXCLUDE else '.cart'
+        return redirect(url_for(sale_redirect, lang=g.language))
     except Exception as e:
         current_app.logger.info(e)
-        flash(_('We found some errors when quote your sale.' \
-            'Contact Us.'), 'danger')
+        flash(_('We found some errors when quote your sale. Contact Us.'), 'danger')
+        sale_redirect = 'sale.sale' if 'draft' not in SALE_STATE_EXCLUDE else '.cart'
+        return redirect(url_for(sale_redirect, lang=g.language))
 
     if current_app.debug:
         current_app.logger.info('Sale. Create sale %s' % sale.id)
