@@ -11,6 +11,7 @@ from flask_babel import gettext as _, ngettext
 from flask_login import current_user
 from trytond.transaction import Transaction
 from trytond.exceptions import UserError
+from trytond.modules.sale_stock_quantity.exceptions import StockQuantityWarning
 from werkzeug.utils import secure_filename
 from .forms import SaleForm, PartyForm, ShipmentAddressForm, InvoiceAddressForm
 from decimal import Decimal
@@ -329,6 +330,11 @@ def confirm(lang):
     # Convert draft to quotation
     try:
         Sale.quote([sale])
+    except StockQuantityWarning as e:
+        current_app.logger.info(e)
+        flash(str(e), 'danger')
+        sale_redirect = 'sale.sale' if 'draft' not in SALE_STATE_EXCLUDE else '.cart'
+        return redirect(url_for(sale_redirect, lang=g.language))
     except UserError as e:
         current_app.logger.info(e)
         flash(_('We found some errors when quote your sale. Contact Us.'), 'danger')
