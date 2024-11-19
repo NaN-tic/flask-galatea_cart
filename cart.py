@@ -176,6 +176,13 @@ def my_cart(lang):
 @tryton.transaction()
 def confirm(lang):
     '''Confirm and create a sale'''
+    websites = Website.search([
+        ('id', '=', GALATEA_WEBSITE),
+        ], limit=1)
+    if not websites:
+        abort(404)
+    website, = websites
+
     shop = Shop(SHOP)
     data = request.form
 
@@ -296,6 +303,20 @@ def confirm(lang):
             if kit_lines:
                 lines.extend(kit_lines)
 
+    if website.esale_stock:
+        for line in lines:
+            # checkout stock available
+            if line.product.type not in PRODUCT_TYPE_STOCK:
+                continue
+            if website.esale_stock_qty == 'forecast_quantity':
+                quantity = line.product.esale_forecast_quantity
+            else:
+                quantity = line.product.esale_quantity
+            if not (line.quantity > 0 and line.quantity <= quantity):
+                flash(_('Not enought stock for the product "{product}" (maximun: {quantity} units).').format(
+                    product=line.product.rec_name, quantity=quantity), 'danger')
+                return redirect(url_for('.cart', lang=g.language))
+
     sale = form_sale.get_sale(party=party, lines=lines, step='confirm')
     if invoice_address:
         sale.invoice_address = invoice_address
@@ -337,12 +358,12 @@ def confirm(lang):
         return redirect(url_for(sale_redirect, lang=g.language))
     except UserError as e:
         current_app.logger.info(e)
-        flash(_('We found some errors when quote your sale. Contact Us.'), 'danger')
+        flash(_('We found some errors when quote your sale #%s. Contact Us.' % sale.id), 'danger')
         sale_redirect = 'sale.sale' if 'draft' not in SALE_STATE_EXCLUDE else '.cart'
         return redirect(url_for(sale_redirect, lang=g.language))
     except Exception as e:
         current_app.logger.info(e)
-        flash(_('We found some errors when quote your sale. Contact Us.'), 'danger')
+        flash(_('We found some errors when quote your sale #%s. Contact Us.' % sale.id), 'danger')
         sale_redirect = 'sale.sale' if 'draft' not in SALE_STATE_EXCLUDE else '.cart'
         return redirect(url_for(sale_redirect, lang=g.language))
 
