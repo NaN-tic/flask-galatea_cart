@@ -105,7 +105,7 @@ class SaleForm(Form):
             sale.on_change_lines()
 
             # calculate shipment price
-            sale_vals = sale._save_values
+            sale_vals = sale._save_values()
             sale_vals['untaxed_amount'] = sale.untaxed_amount
             sale_vals['total_amount'] = sale.total_amount
             if 'lines' in sale_vals:
