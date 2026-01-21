@@ -574,7 +574,7 @@ def add(lang):
                         line.on_change_quantity()
                         try:
                             line.pre_validate()
-                            to_update.extend(([line], line._save_values))
+                            to_update.extend(([line], line._save_values()))
                         except UserError as e:
                             flash(e.message, 'danger')
                     else:
@@ -603,7 +603,7 @@ def add(lang):
                     line.sale = None
                     try:
                         line.pre_validate()
-                        to_create.append(line._save_values)
+                        to_create.append(line._save_values())
                     except UserError as e:
                         flash(e.message, 'danger')
 
@@ -1216,7 +1216,7 @@ def clone(lang):
             line.quantity = 1
             line.product = product_id
             line.on_change_product()
-            to_create.append(line._save_values)
+            to_create.append(line._save_values())
 
     if to_create:
         SaleLine.create(to_create)
@@ -1371,7 +1371,7 @@ def cart_file(lang):
                     line.on_change_quantity()
                     try:
                         line.pre_validate()
-                        to_update.extend(([line], line._save_values))
+                        to_update.extend(([line], line._save_values()))
                     except UserError as e:
                         flash(e.message, 'danger')
                         continue
@@ -1391,7 +1391,7 @@ def cart_file(lang):
                     line.on_change_quantity()
                     try:
                         line.pre_validate()
-                        to_create.append(line._save_values)
+                        to_create.append(line._save_values())
                     except UserError as e:
                         flash(e.message, 'danger')
                         continue
