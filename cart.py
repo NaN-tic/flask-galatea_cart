@@ -3,8 +3,7 @@ import codecs
 import uuid
 from flask import Blueprint, render_template, current_app, abort, g, url_for, \
     flash, redirect, session, request, jsonify
-from galatea.tryton import tryton
-from galatea.csrf import csrf
+from app_extensions import tryton
 from galatea.utils import thumbnail
 from galatea.helpers import login_required, customer_required
 from flask_babel import gettext as _, ngettext
@@ -27,39 +26,74 @@ except:
 
 cart = Blueprint('cart', __name__, template_folder='templates')
 
-GALATEA_WEBSITE = current_app.config.get('TRYTON_GALATEA_SITE')
-SHOP = current_app.config.get('TRYTON_SALE_SHOP')
-SHOPS = current_app.config.get('TRYTON_SALE_SHOPS')
-DELIVERY_INVOICE_ADDRESS = current_app.config.get('TRYTON_SALE_DELIVERY_INVOICE_ADDRESS', True)
-CART_ANONYMOUS = current_app.config.get('TRYTON_CART_ANONYMOUS', True)
-CART_CROSSSELLS = current_app.config.get('TRYTON_CART_CROSSSELLS', True)
-LIMIT_CROSSELLS = current_app.config.get('TRYTON_CATALOG_LIMIT_CROSSSELLS', 10)
-MINI_CART_CODE = current_app.config.get('TRYTON_CATALOG_MINI_CART_CODE', False)
-SALE_KIT = current_app.config.get('TRYTON_SALE_KIT', False)
-SALE_RULE = current_app.config.get('TRYTON_SALE_RULE', False)
-REDIRECT_TO_PAYMENT_GATEWAY = current_app.config.get('REDIRECT_TO_PAYMENT_GATEWAY', False)
-GALATEA_CART_FILE = current_app.config.get('TRYTON_GALATEA_CART_FILE', False)
-GALATEA_CART_FILE_LOGIN = current_app.config.get('TRYTON_GALATEA_CART_FILE_LOGIN', True)
-GALATEA_CART_FILE_FOUND_LIMIT = current_app.config.get('TRYTON_GALATEA_CART_FILE_FOUND_LIMIT')
-SALE_STATE_EXCLUDE = current_app.config.get('TRYTON_SALE_STATE_EXCLUDE', [])
+def get_shops():
+    return current_app.config.get('TRYTON_SALE_SHOPS')
 
-Date = tryton.pool.get('ir.date')
-Website = tryton.pool.get('galatea.website')
-GalateaUser = tryton.pool.get('galatea.user')
-Template = tryton.pool.get('product.template')
-Product = tryton.pool.get('product.product')
-Shop = tryton.pool.get('sale.shop')
-Carrier = tryton.pool.get('carrier')
-CarrierSelection = tryton.pool.get('carrier.selection')
-Party = tryton.pool.get('party.party')
-Address = tryton.pool.get('party.address')
-Sale = tryton.pool.get('sale.sale')
-SaleLine = tryton.pool.get('sale.line')
-Country = tryton.pool.get('country.country')
-Subdivision = tryton.pool.get('country.subdivision')
-PaymentType = tryton.pool.get('account.payment.type')
+
+def get_delivery_invoice_address():
+    return current_app.config.get('TRYTON_SALE_DELIVERY_INVOICE_ADDRESS', True)
+
+
+def get_cart_anonymous():
+    return current_app.config.get('TRYTON_CART_ANONYMOUS', True)
+
+
+def get_cart_crossells():
+    return current_app.config.get('TRYTON_CART_CROSSSELLS', True)
+
+
+def get_limit_crossells():
+    return current_app.config.get('TRYTON_CATALOG_LIMIT_CROSSSELLS', 10)
+
+
+def get_mini_cart_code():
+    return current_app.config.get('TRYTON_CATALOG_MINI_CART_CODE', False)
+
+
+def get_sale_kit():
+    return current_app.config.get('TRYTON_SALE_KIT', False)
+
+
+def get_sale_rule():
+    return current_app.config.get('TRYTON_SALE_RULE', False)
+
+
+def get_redirect_to_payment_gateway():
+    return current_app.config.get('REDIRECT_TO_PAYMENT_GATEWAY', False)
+
+
+def get_galatea_cart_file():
+    return current_app.config.get('TRYTON_GALATEA_CART_FILE', False)
+
+
+def get_galatea_cart_file_login():
+    return current_app.config.get('TRYTON_GALATEA_CART_FILE_LOGIN', True)
+
+
+def get_galatea_cart_file_found_limit():
+    return current_app.config.get('TRYTON_GALATEA_CART_FILE_FOUND_LIMIT')
+
+
+def get_sale_state_exclude():
+    return current_app.config.get('TRYTON_SALE_STATE_EXCLUDE', [])
 
 PRODUCT_TYPE_STOCK = ['goods', 'assets']
+
+
+def get_session_sid():
+    sid = session.get('sid')
+    if not sid:
+        sid = uuid.uuid4().hex
+        session['sid'] = sid
+    return sid
+
+
+def get_shop_id():
+    return current_app.config.get('TRYTON_SALE_SHOP')
+
+
+def get_galatea_website():
+    return current_app.config.get('TRYTON_GALATEA_SITE')
 
 
 class Cart(object):
@@ -84,6 +118,22 @@ class Cart(object):
 @tryton.transaction()
 def carriers(lang):
     '''Return all carriers (JSON)'''
+    Date = tryton.pool.get('ir.date')
+    Website = tryton.pool.get('galatea.website')
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    Product = tryton.pool.get('product.product')
+    Shop = tryton.pool.get('sale.shop')
+    Carrier = tryton.pool.get('carrier')
+    CarrierSelection = tryton.pool.get('carrier.selection')
+    Party = tryton.pool.get('party.party')
+    Address = tryton.pool.get('party.address')
+    Sale = tryton.pool.get('sale.sale')
+    SaleLine = tryton.pool.get('sale.line')
+    Country = tryton.pool.get('country.country')
+    Subdivision = tryton.pool.get('country.subdivision')
+    PaymentType = tryton.pool.get('account.payment.type')
+
     address_id = request.args.get('address', None)
     postal_code = request.args.get('postal_code', None)
     country = request.args.get('country', None)
@@ -93,7 +143,7 @@ def carriers(lang):
     payment = request.args.get('payment', None)
     customer = session.get('customer', None)
 
-    shop = Shop(SHOP)
+    shop = Shop(get_shop_id())
     decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
 
     if country is not None:
@@ -126,22 +176,38 @@ def carriers(lang):
 @tryton.transaction()
 def my_cart(lang):
     '''All Carts JSON'''
+    Date = tryton.pool.get('ir.date')
+    Website = tryton.pool.get('galatea.website')
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    Product = tryton.pool.get('product.product')
+    Shop = tryton.pool.get('sale.shop')
+    Carrier = tryton.pool.get('carrier')
+    CarrierSelection = tryton.pool.get('carrier.selection')
+    Party = tryton.pool.get('party.party')
+    Address = tryton.pool.get('party.address')
+    Sale = tryton.pool.get('sale.sale')
+    SaleLine = tryton.pool.get('sale.line')
+    Country = tryton.pool.get('country.country')
+    Subdivision = tryton.pool.get('country.subdivision')
+    PaymentType = tryton.pool.get('account.payment.type')
+
     items = []
 
-    shop = Shop(SHOP)
+    shop = Shop(get_shop_id())
     domain = [
         ('sale', '=', None),
-        ('shop', '=', SHOP),
+        ('shop', '=', get_shop_id()),
         ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             ('galatea_user', '=', session['user']),
             ])
     else: # anonymous user
         domain.append(
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             )
 
     lines = SaleLine.search(domain)
@@ -156,7 +222,7 @@ def my_cart(lang):
             image = thumbnail(filename, thumbname, '200x200')
         items.append({
             'id': line.id,
-            'name': line.product.code if MINI_CART_CODE else line.product.rec_name,
+            'name': line.product.code if get_mini_cart_code() else line.product.rec_name,
             'url': url_for('catalog.product_'+g.language, lang=g.language,
                 slug=line.product.template.esale_slug),
             'quantity': line.quantity,
@@ -176,18 +242,34 @@ def my_cart(lang):
 @tryton.transaction()
 def confirm(lang):
     '''Confirm and create a sale'''
+    Date = tryton.pool.get('ir.date')
+    Website = tryton.pool.get('galatea.website')
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    Product = tryton.pool.get('product.product')
+    Shop = tryton.pool.get('sale.shop')
+    Carrier = tryton.pool.get('carrier')
+    CarrierSelection = tryton.pool.get('carrier.selection')
+    Party = tryton.pool.get('party.party')
+    Address = tryton.pool.get('party.address')
+    Sale = tryton.pool.get('sale.sale')
+    SaleLine = tryton.pool.get('sale.line')
+    Country = tryton.pool.get('country.country')
+    Subdivision = tryton.pool.get('country.subdivision')
+    PaymentType = tryton.pool.get('account.payment.type')
+
     websites = Website.search([
-        ('id', '=', GALATEA_WEBSITE),
+        ('id', '=', get_galatea_website()),
         ], limit=1)
     if not websites:
         abort(404)
     website, = websites
 
-    shop = Shop(SHOP)
+    shop = Shop(get_shop_id())
     data = request.form
 
     party = session.get('customer')
-    if not party and not CART_ANONYMOUS:
+    if not party and not get_cart_anonymous():
         flash(_('Please login in to continue the checkout.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
 
@@ -200,17 +282,17 @@ def confirm(lang):
     # Lines
     domain = [
         ('sale', '=', None),
-        ('shop', '=', SHOP),
+        ('shop', '=', get_shop_id()),
         ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             ('galatea_user', '=', session['user']),
             ])
     else: # anonymous user
         domain.append(
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             )
     lines = SaleLine.search(domain)
     if not lines:
@@ -296,7 +378,7 @@ def confirm(lang):
             shop, party, values, type='delivery')
 
     # explode sale kit
-    if SALE_KIT:
+    if get_sale_kit():
         to_explode = [line for line in lines if line.product.kit and line.product.explode_kit_in_sales]
         if to_explode:
             kit_lines = SaleLine.explode_kit(to_explode)
@@ -324,7 +406,7 @@ def confirm(lang):
         sale.shipment_address = shipment_address
 
     # Apply rules
-    if SALE_RULE:
+    if get_sale_rule():
         with Transaction().set_context({'apply_rule': False}):
             sale.coupon = request.form.get('coupon', None)
             rule_lines = sale.apply_rule()
@@ -355,17 +437,17 @@ def confirm(lang):
         except StockQuantityError as e:
             current_app.logger.info(e)
             flash(str(e), 'danger')
-            sale_redirect = 'sale.sale' if 'draft' not in SALE_STATE_EXCLUDE else '.cart'
+            sale_redirect = 'sale.sale' if 'draft' not in get_sale_state_exclude() else '.cart'
             return redirect(url_for(sale_redirect, lang=g.language))
         except UserError as e:
             current_app.logger.info(e)
             flash(_('We found some errors when quote your sale #%s. Contact Us.' % sale.id), 'danger')
-            sale_redirect = 'sale.sale' if 'draft' not in SALE_STATE_EXCLUDE else '.cart'
+            sale_redirect = 'sale.sale' if 'draft' not in get_sale_state_exclude() else '.cart'
             return redirect(url_for(sale_redirect, lang=g.language))
         except Exception as e:
             current_app.logger.info(e)
             flash(_('We found some errors when quote your sale #%s. Contact Us.' % sale.id), 'danger')
-            sale_redirect = 'sale.sale' if 'draft' not in SALE_STATE_EXCLUDE else '.cart'
+            sale_redirect = 'sale.sale' if 'draft' not in get_sale_state_exclude() else '.cart'
             return redirect(url_for(sale_redirect, lang=g.language))
 
     if current_app.debug:
@@ -373,19 +455,34 @@ def confirm(lang):
 
     flash(_('Successfully created a new order.'), 'success')
 
-    if (REDIRECT_TO_PAYMENT_GATEWAY and
+    if (get_redirect_to_payment_gateway() and
             sale.payment_type and sale.payment_type.esale_code):
         return render_template('payment.html', sale=sale)
 
     return redirect(url_for('sale.sale', lang=g.language, id=sale.id))
 
-@csrf.exempt
 @cart.route("/add/", methods=["POST"], endpoint="add")
 @tryton.transaction()
 def add(lang):
     '''Add product item cart'''
+    Date = tryton.pool.get('ir.date')
+    Website = tryton.pool.get('galatea.website')
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    Product = tryton.pool.get('product.product')
+    Shop = tryton.pool.get('sale.shop')
+    Carrier = tryton.pool.get('carrier')
+    CarrierSelection = tryton.pool.get('carrier.selection')
+    Party = tryton.pool.get('party.party')
+    Address = tryton.pool.get('party.address')
+    Sale = tryton.pool.get('sale.sale')
+    SaleLine = tryton.pool.get('sale.line')
+    Country = tryton.pool.get('country.country')
+    Subdivision = tryton.pool.get('country.subdivision')
+    PaymentType = tryton.pool.get('account.payment.type')
+
     websites = Website.search([
-        ('id', '=', GALATEA_WEBSITE),
+        ('id', '=', get_galatea_website()),
         ], limit=1)
     if not websites:
         abort(404)
@@ -396,7 +493,7 @@ def add(lang):
     if session.get('customer'):
         lock_id = ('1%%0%sd' % 7 ) % int(str(session['customer'])[:7])
     else:
-        lock_id = int('2'+str(uuid.UUID(session.sid).int)[:7])
+        lock_id = int('2'+str(uuid.UUID(get_session_sid()).int)[:7])
 
     cursor.execute("SELECT * FROM pg_try_advisory_xact_lock(%s)", (lock_id,))
     res = cursor.fetchone()
@@ -485,17 +582,17 @@ def add(lang):
     # Search current cart by user or session
     domain = [
         ('sale', '=', None),
-        ('shop', '=', SHOP),
+        ('shop', '=', get_shop_id()),
         ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             ('galatea_user', '=', session['user']),
             ])
     else: # anonymous user
         domain.append(
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             )
     lines = SaleLine.search(domain)
 
@@ -513,7 +610,7 @@ def add(lang):
         ('id', 'in', [k for k, _ in values.items()]),
         ('template.esale_available', '=', True),
         ('template.esale_active', '=', True),
-        ('template.shops', 'in', [SHOP]),
+        ('template.shops', 'in', [get_shop_id()]),
         ]
     if session.get('hidden_products'):
         domain += [('template.id', 'not in', session.get('hidden_products'))]
@@ -556,7 +653,7 @@ def add(lang):
             context['price_list'] = party.sale_price_list.id if party.sale_price_list else None
         with Transaction().set_context(context):
             products_to_add = dict()
-            if SALE_KIT and product.kit and not product.kit_fixed_list_price:
+            if get_sale_kit() and product.kit and not product.kit_fixed_list_price:
                 kit_lines = list(product.kit_lines)
                 while kit_lines:
                     kit_line = kit_lines.pop(0)
@@ -589,11 +686,11 @@ def add(lang):
                 line.party = party
                 line.quantity = quantity
                 line.product = product_id
-                line.shop = SHOP
+                line.shop = get_shop_id()
                 if session.get('user', None):
                     line.galatea_user = session['user']
                 else:
-                    line.sid = session.sid
+                    line.sid = get_session_sid()
                 line.on_change_product()
 
                 # Create data
@@ -668,32 +765,48 @@ def add(lang):
 @tryton.transaction()
 def checkout(lang):
     '''Checkout sale'''
+    Date = tryton.pool.get('ir.date')
+    Website = tryton.pool.get('galatea.website')
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    Product = tryton.pool.get('product.product')
+    Shop = tryton.pool.get('sale.shop')
+    Carrier = tryton.pool.get('carrier')
+    CarrierSelection = tryton.pool.get('carrier.selection')
+    Party = tryton.pool.get('party.party')
+    Address = tryton.pool.get('party.address')
+    Sale = tryton.pool.get('sale.sale')
+    SaleLine = tryton.pool.get('sale.line')
+    Country = tryton.pool.get('country.country')
+    Subdivision = tryton.pool.get('country.subdivision')
+    PaymentType = tryton.pool.get('account.payment.type')
+
     websites = Website.search([
-        ('id', '=', GALATEA_WEBSITE),
+        ('id', '=', get_galatea_website()),
         ], limit=1)
     if not websites:
         abort(404)
     website, = websites
 
     errors = []
-    shop = Shop(SHOP)
+    shop = Shop(get_shop_id())
     countries = [(c.id, c.name) for c in shop.esale_countrys]
 
     email = request.form.get('invoice_email') or request.form.get('shipment_email')
 
     domain = [
         ('sale', '=', None),
-        ('shop', '=', SHOP),
+        ('shop', '=', get_shop_id()),
         ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             ('galatea_user', '=', session['user']),
             ])
     else: # anonymous user
         domain.append(
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             )
     lines = SaleLine.search(domain)
     if not lines:
@@ -705,7 +818,7 @@ def checkout(lang):
         users = GalateaUser.search([
             ('email', '=', email),
             ('active', '=', True),
-            ('websites', 'in', [GALATEA_WEBSITE]),
+            ('websites', 'in', [get_galatea_website()]),
             ], limit=1)
         if users:
             flash(_('Your email is already registed user. Please, login in.'), 'danger')
@@ -725,7 +838,7 @@ def checkout(lang):
             sale.party = party
             sale.shipment_party = party
             sale.on_change_shipment_party()
-    elif not CART_ANONYMOUS:
+    elif not get_cart_anonymous():
         flash(_('Please login in to continue the checkout.'), 'danger')
         return redirect(url_for('.cart', lang=g.language))
 
@@ -882,7 +995,7 @@ def checkout(lang):
                 ', '.join(v)))
 
     # Apply rules
-    if SALE_RULE:
+    if get_sale_rule():
         with Transaction().set_context({'apply_rule': False}):
             coupon = request.form.get('coupon', None)
             form_sale.coupon.default = coupon
@@ -923,30 +1036,46 @@ def checkout(lang):
 @tryton.transaction()
 def cart_list(lang):
     '''Cart by user or session'''
+    Date = tryton.pool.get('ir.date')
+    Website = tryton.pool.get('galatea.website')
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    Product = tryton.pool.get('product.product')
+    Shop = tryton.pool.get('sale.shop')
+    Carrier = tryton.pool.get('carrier')
+    CarrierSelection = tryton.pool.get('carrier.selection')
+    Party = tryton.pool.get('party.party')
+    Address = tryton.pool.get('party.address')
+    Sale = tryton.pool.get('sale.sale')
+    SaleLine = tryton.pool.get('sale.line')
+    Country = tryton.pool.get('country.country')
+    Subdivision = tryton.pool.get('country.subdivision')
+    PaymentType = tryton.pool.get('account.payment.type')
+
     websites = Website.search([
-        ('id', '=', GALATEA_WEBSITE),
+        ('id', '=', get_galatea_website()),
         ], limit=1)
     if not websites:
         abort(404)
     website, = websites
 
-    shop = Shop(SHOP)
+    shop = Shop(get_shop_id())
     countries = [(str(c.id), c.name) for c in shop.esale_countrys]
 
     # Products and lines
     domain = [
         ('sale', '=', None),
-        ('shop', '=', SHOP),
+        ('shop', '=', get_shop_id()),
         ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             ('galatea_user', '=', session['user']),
             ])
     else: # anonymous user
         domain.append(
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             )
     lines = SaleLine.search(domain)
 
@@ -1026,7 +1155,7 @@ def cart_list(lang):
     invoice_address_choices = [(a.id, a.full_address) for a in invoice_addresses]
     invoice_address_choices.append(('new-address', _('New address')))
     shipment_address_choices = [(a.id, a.full_address) for a in shipment_addresses]
-    if DELIVERY_INVOICE_ADDRESS:
+    if get_delivery_invoice_address():
         shipment_address_choices.insert(0, ('invoice-address', _('Delivery to Invoice Address')))
     shipment_address_choices.append(('new-address', _('New address')))
 
@@ -1081,7 +1210,7 @@ def cart_list(lang):
 
     # Cross Sells
     crossells = []
-    if CART_CROSSSELLS:
+    if get_cart_crossells():
         template_ids = list({l.product.template.id for l in lines})
         templates = Template.browse(template_ids)
         crossells_ids = set()
@@ -1090,7 +1219,7 @@ def cart_list(lang):
                 crossells_ids.add(crossell.id)
         if crossells_ids:
             with Transaction().set_context(without_special_price=True):
-                crossells = Template.browse(list(crossells_ids)[:LIMIT_CROSSELLS])
+                crossells = Template.browse(list(crossells_ids)[:get_limit_crossells()])
 
     session['next'] = url_for('.cart', lang=g.language)
 
@@ -1120,9 +1249,25 @@ def cart_list(lang):
 @tryton.transaction()
 def cart_pending(lang):
     '''Last cart pending'''
+    Date = tryton.pool.get('ir.date')
+    Website = tryton.pool.get('galatea.website')
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    Product = tryton.pool.get('product.product')
+    Shop = tryton.pool.get('sale.shop')
+    Carrier = tryton.pool.get('carrier')
+    CarrierSelection = tryton.pool.get('carrier.selection')
+    Party = tryton.pool.get('party.party')
+    Address = tryton.pool.get('party.address')
+    Sale = tryton.pool.get('sale.sale')
+    SaleLine = tryton.pool.get('sale.line')
+    Country = tryton.pool.get('country.country')
+    Subdivision = tryton.pool.get('country.subdivision')
+    PaymentType = tryton.pool.get('account.payment.type')
+
     domain = [
         ('sale', '=', None),
-        ('shop', '=', SHOP),
+        ('shop', '=', get_shop_id()),
         ('type', '=', 'line'),
             ['OR',
                 ('party', '=', session['customer']),
@@ -1149,6 +1294,22 @@ def cart_pending(lang):
 @tryton.transaction()
 def clone(lang):
     '''Copy Sale Lines to new carts'''
+    Date = tryton.pool.get('ir.date')
+    Website = tryton.pool.get('galatea.website')
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    Product = tryton.pool.get('product.product')
+    Shop = tryton.pool.get('sale.shop')
+    Carrier = tryton.pool.get('carrier')
+    CarrierSelection = tryton.pool.get('carrier.selection')
+    Party = tryton.pool.get('party.party')
+    Address = tryton.pool.get('party.address')
+    Sale = tryton.pool.get('sale.sale')
+    SaleLine = tryton.pool.get('sale.line')
+    Country = tryton.pool.get('country.country')
+    Subdivision = tryton.pool.get('country.subdivision')
+    PaymentType = tryton.pool.get('account.payment.type')
+
     id = request.form.get('id')
     if not id:
         flash(_('Error when clone. Select a sale to clone.'), "danger")
@@ -1156,7 +1317,7 @@ def clone(lang):
 
     sales = Sale.search([
         ('id', '=', id),
-        ('shop', 'in', SHOPS),
+        ('shop', 'in', get_shops()),
         ('party', '=', session['customer']),
         ], limit=1)
     if not sales:
@@ -1174,17 +1335,17 @@ def clone(lang):
     # Search current carts by user or session
     domain = [
         ('sale', '=', None),
-        ('shop', '=', SHOP),
+        ('shop', '=', get_shop_id()),
         ('type', '=', 'line'),
         ]
     if session.get('user'): # login user
         domain.append(['OR',
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             ('galatea_user', '=', session['user']),
             ])
     else: # anonymous user
         domain.append(
-            ('sid', '=', session.sid),
+            ('sid', '=', get_session_sid()),
             )
     lines = SaleLine.search(domain)
 
@@ -1211,7 +1372,7 @@ def clone(lang):
             line = SaleLine(**defaults)
             line.shop = shop
             line.party = sale.party.id
-            line.sid = session.sid
+            line.sid = get_session_sid()
             line.galatea_user = session.get('user', None)
             line.quantity = 1
             line.product = product_id
@@ -1227,13 +1388,28 @@ def clone(lang):
 
     return redirect(url_for('.cart', lang=g.language))
 
-@csrf.exempt
 @cart.route("/cart-file/", methods=["POST"], endpoint="cart-file")
 @tryton.transaction()
 def cart_file(lang):
-    if not GALATEA_CART_FILE:
+    Date = tryton.pool.get('ir.date')
+    Website = tryton.pool.get('galatea.website')
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    Product = tryton.pool.get('product.product')
+    Shop = tryton.pool.get('sale.shop')
+    Carrier = tryton.pool.get('carrier')
+    CarrierSelection = tryton.pool.get('carrier.selection')
+    Party = tryton.pool.get('party.party')
+    Address = tryton.pool.get('party.address')
+    Sale = tryton.pool.get('sale.sale')
+    SaleLine = tryton.pool.get('sale.line')
+    Country = tryton.pool.get('country.country')
+    Subdivision = tryton.pool.get('country.subdivision')
+    PaymentType = tryton.pool.get('account.payment.type')
+
+    if not get_galatea_cart_file():
         abort(404)
-    if not current_user.is_authenticated and GALATEA_CART_FILE_LOGIN:
+    if not current_user.is_authenticated and get_galatea_cart_file_login():
         return current_app.login_manager.unauthorized()
 
     def allowed_file(filename):
@@ -1303,18 +1479,18 @@ def cart_file(lang):
         # Search current cart by user or session
         domain = [
             ('sale', '=', None),
-            ('shop', '=', SHOP),
+            ('shop', '=', get_shop_id()),
             ('type', '=', 'line'),
             ('product', '!=', None),
             ]
         if session.get('user'): # login user
             domain.append(['OR',
-                ('sid', '=', session.sid),
+                ('sid', '=', get_session_sid()),
                 ('galatea_user', '=', session['user']),
                 ])
         else: # anonymous user
             domain.append(
-                ('sid', '=', session.sid),
+                ('sid', '=', get_session_sid()),
                 )
         lines = dict((l.product.code, l) for l in SaleLine.search(domain))
 
@@ -1343,8 +1519,8 @@ def cart_file(lang):
             for code in codes_upper:
                 if not products_by_code.get(code):
                     not_found.append(code)
-                if (GALATEA_CART_FILE_FOUND_LIMIT
-                        and len(not_found) > GALATEA_CART_FILE_FOUND_LIMIT):
+                if (get_galatea_cart_file_found_limit()
+                        and len(not_found) > get_galatea_cart_file_found_limit()):
                     not_found.append('...')
                     break
             flash(_('Can not found "{not_found}" products in the "{filename}" file.').format(
@@ -1384,8 +1560,8 @@ def cart_file(lang):
                     line.unit = product.sale_uom
                     line.quantity = round(qty, product.sale_uom.digits)
                     line.product = product
-                    line.sid = session.sid
-                    line.shop = SHOP
+                    line.sid = get_session_sid()
+                    line.shop = get_shop_id()
                     line.galatea_user = session.get('user', None)
                     line.on_change_product()
                     line.on_change_quantity()

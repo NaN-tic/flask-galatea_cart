@@ -1,24 +1,15 @@
 import stdnum.eu.vat as vat
 from decimal import Decimal
 from flask import current_app, request, session
-from galatea.tryton import tryton
+from app_extensions import tryton
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm as Form
 from wtforms import (IntegerField, TextAreaField, StringField, SelectField,
         RadioField, validators)
 from trytond.transaction import Transaction
 
-Party = tryton.pool.get('party.party')
-Address = tryton.pool.get('party.address')
-Country = tryton.pool.get('country.country')
-Subdivision = tryton.pool.get('country.subdivision')
-Sale = tryton.pool.get('sale.sale')
-PaymentType = tryton.pool.get('account.payment.type')
-Date = tryton.pool.get('ir.date')
-Carrier = tryton.pool.get('carrier')
-Shop = tryton.pool.get('sale.shop')
-
-SHOP = current_app.config.get('TRYTON_SALE_SHOP')
+def _shop_id():
+    return current_app.config.get('TRYTON_SALE_SHOP')
 
 # VAT Countries
 VAT_COUNTRIES = [('', '')]
@@ -36,13 +27,14 @@ class SaleForm(Form):
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
 
-    def validate(self):
-        rv = Form.validate(self)
+    def validate(self, extra_validators=None):
+        rv = Form.validate(self, extra_validators=extra_validators)
         if not rv:
             return False
         return True
 
     def load(self):
+        PaymentType = tryton.pool.get('account.payment.type')
         self.comment.data = request.form.get('comment')
 
         if request.form.get('payment_type'):
@@ -56,7 +48,14 @@ class SaleForm(Form):
             self.carrier.default = request.form.get('carrier')
 
     def get_sale(self, party=None, lines=[], step=None):
-        shop = Shop(SHOP)
+        Party = tryton.pool.get('party.party')
+        Sale = tryton.pool.get('sale.sale')
+        PaymentType = tryton.pool.get('account.payment.type')
+        Date = tryton.pool.get('ir.date')
+        Carrier = tryton.pool.get('carrier')
+        Shop = tryton.pool.get('sale.shop')
+
+        shop = Shop(_shop_id())
         default_values = Sale.default_get(Sale._fields.keys(),
             with_rec_name=False)
         sale = Sale(**default_values)
@@ -145,8 +144,8 @@ class PartyForm(Form):
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
 
-    def validate(self):
-        rv = Form.validate(self)
+    def validate(self, extra_validators=None):
+        rv = Form.validate(self, extra_validators=extra_validators)
         if not rv:
             return False
         return True
@@ -196,13 +195,15 @@ class ShipmentAddressForm(Form):
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
 
-    def validate(self):
-        rv = Form.validate(self)
+    def validate(self, extra_validators=None):
+        rv = Form.validate(self, extra_validators=extra_validators)
         if not rv:
             return False
         return True
 
     def load(self, type_='shipment', address=None):
+        Country = tryton.pool.get('country.country')
+        Subdivision = tryton.pool.get('country.subdivision')
         self.shipment_name.data = address.party_name if address else request.form.get('%s_name' % type_)
         self.shipment_street.data = address.street if address else request.form.get('%s_street' % type_)
         self.shipment_postal_code.data = address.postal_code if address else request.form.get('%s_postal_code' % type_)
@@ -237,6 +238,7 @@ class ShipmentAddressForm(Form):
                 self.shipment_subdivision.data = 0
 
     def get_address(self):
+        Address = tryton.pool.get('party.address')
         # return dict to parameter in esale_create_address
         values = {
             'delivery': True,
@@ -273,13 +275,15 @@ class InvoiceAddressForm(Form):
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
 
-    def validate(self):
-        rv = Form.validate(self)
+    def validate(self, extra_validators=None):
+        rv = Form.validate(self, extra_validators=extra_validators)
         if not rv:
             return False
         return True
 
     def load(self, address=None):
+        Country = tryton.pool.get('country.country')
+        Subdivision = tryton.pool.get('country.subdivision')
         self.invoice_name.data = address.party_name if address else request.form.get('invoice_name')
         self.invoice_street.data = address.street if address else request.form.get('invoice_street')
         self.invoice_postal_code.data = address.postal_code if address else request.form.get('invoice_postal_code')
@@ -314,6 +318,7 @@ class InvoiceAddressForm(Form):
                 self.invoice_subdivision.data = 0
 
     def get_address(self, delivery=True):
+        Address = tryton.pool.get('party.address')
         # return dict to parameter in esale_create_address
         values = {
             'invoice': True,
