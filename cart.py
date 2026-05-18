@@ -1330,7 +1330,8 @@ def clone(lang):
     products = set()
     sale_lines = sale.get_esale_lines()
     for l in sale_lines:
-        products.add(l.product.id)
+        if l.product.active:
+            products.add(l.product.id)
 
     # Search current carts by user or session
     domain = [
