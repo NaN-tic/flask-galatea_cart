@@ -212,6 +212,14 @@ def my_cart(lang):
 
     lines = SaleLine.search(domain)
 
+    if lines:
+        line_ids = {line.id for line in lines}
+        party = Party(session['customer']) if session.get('customer') else None
+        form_sale = current_app.extensions['Cart'].sale_form()
+        # Give cart lines an in-memory sale for tax calculations.
+        sale = form_sale.get_sale(party=party, lines=lines, step='list')
+        lines = [line for line in sale.lines if line.id in line_ids]
+
     decimals = "%0."+str(shop.currency.digits)+"f" # "%0.2f" euro
     for line in lines:
         img = line.product.template.esale_default_images
@@ -227,9 +235,11 @@ def my_cart(lang):
                 slug=line.product.template.esale_slug),
             'quantity': line.quantity,
             'unit_price': float(Decimal(decimals % line.unit_price)),
-            'unit_price_w_tax': float(Decimal(decimals % line.unit_price_w_tax)),
+            'unit_price_w_tax': float(Decimal(decimals % (
+                line.unit_price_w_tax if line.quantity else Decimal(0)))),
             'untaxed_amount': float(Decimal(decimals % line.amount)),
-            'amount_w_tax': float(Decimal(decimals % line.amount_w_tax)),
+            'amount_w_tax': float(Decimal(decimals % (
+                line.amount_w_tax if line.quantity else Decimal(0)))),
             'image': image,
             })
 
