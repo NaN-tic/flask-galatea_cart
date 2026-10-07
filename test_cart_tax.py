@@ -3,7 +3,7 @@ import copy
 import importlib.util
 from decimal import Decimal
 from pathlib import Path
-from types import SimpleNamespace
+from types import MethodType, SimpleNamespace
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
@@ -18,7 +18,8 @@ def load_cart():
             'trytond.modules.sale_stock_quantity',
             'trytond.modules.sale_stock_quantity.exceptions', 'werkzeug',
             'werkzeug.utils', '_cart_test.forms', 'emailvalid', 'stdnum',
-            'stdnum.eu', 'stdnum.eu.vat', 'openpyxl')}
+            'stdnum.eu', 'stdnum.eu.vat', 'openpyxl', 'flask_wtf', 'wtforms')}
+    dependencies['flask_wtf'].FlaskForm = object
     identity = lambda *args, **kwargs: lambda function: function
     dependencies['flask'].Blueprint.return_value.route.side_effect = identity
     dependencies['app_extensions'].tryton.transaction.side_effect = identity
@@ -28,32 +29,62 @@ def load_cart():
         '_cart_test.cart', Path(__file__).with_name('cart.py'))
     module = importlib.util.module_from_spec(spec)
     with patch.dict('sys.modules', dependencies):
-        spec.loader.exec_module(module)
+        forms_spec = importlib.util.spec_from_file_location(
+            '_cart_test.forms', Path(__file__).with_name('forms.py'))
+        forms = importlib.util.module_from_spec(forms_spec)
+        forms_spec.loader.exec_module(forms)
+        with patch.dict('sys.modules', {'_cart_test.forms': forms}):
+            spec.loader.exec_module(module)
+    module._forms = forms
     return module
 
 
 class Line:
     sale = None
+    type = 'line'
     id = 1
-    product = SimpleNamespace(id=1)
+    product = SimpleNamespace(id=1, code='P1', rec_name='Product',
+        template=SimpleNamespace(esale_default_images={}, esale_slug='p1'))
+    unit_price = Decimal('10')
+    # A saved Function field reads the database record without the local sale.
+    amount_w_tax = None
+    unit_price_w_tax = None
 
     def __init__(self, quantity, rate):
         self.quantity = quantity
         self.rate = rate
         self.amount = Decimal('10') * quantity
 
-    @property
-    def amount_w_tax(self):
-        # Match the requirement introduced by sale_w_tax: no sale, no amount.
+    def get_amount(self, name):
+        return self.unit_price * self.quantity
+
+    def on_change_with_company(self):
+        return self.sale.company
+
+    def on_change_with_currency(self):
+        return self.sale.currency
+
+    def on_change_with_amount_w_tax(self):
         if self.sale is not None and self.quantity:
+            assert self.company is self.sale.company
+            assert self.currency is self.sale.currency
             return self.amount * (1 + self.rate)
+
+    def on_change_with_unit_price_w_tax(self):
+        if self.sale is not None and self.quantity:
+            return self.unit_price * (1 + self.rate)
 
 
 class Sale:
-    def __init__(self, party):
+    def __init__(self, party=None):
         self.party = party
+        self.company = object()
+        self.currency = object()
         self.on_change_lines = Mock()
         self.on_change_shipment_party = Mock()
+        self.on_change_party = Mock()
+        self.on_change_shop = Mock()
+        self._get_extra_lines = Mock(return_value=[])
         self.lines = []
 
     @property
@@ -107,6 +138,8 @@ class CartTaxTest(unittest.TestCase):
                 cart.tryton.pool.get.side_effect = lambda name: models.get(name, Mock())
                 form = Mock()
                 form.get_sale.side_effect = lambda party, step: Sale(party)
+                form.update_cart_taxes = MethodType(
+                    cart.SaleForm.update_cart_taxes, form)
                 extension = Mock()
                 extension.sale_form.return_value = form
                 cart.current_app = SimpleNamespace(
@@ -133,6 +166,8 @@ class CartTaxTest(unittest.TestCase):
                 self.assertEqual(form.carrier.data, 4 if stockable else None)
                 for line in sale.lines:
                     self.assertIs(line.sale, sale)
+                    self.assertEqual(line.amount_w_tax,
+                        line.amount * (1 + rate))
                 for line in original:
                     self.assertIsNone(line.sale)
                 if stockable:
@@ -148,6 +183,66 @@ class CartTaxTest(unittest.TestCase):
                 line_model.save.assert_not_called()
                 line_model.write.assert_not_called()
                 sale_model.save.assert_not_called()
+
+    def test_saved_lines_in_json_and_pending_cart(self):
+        for endpoint in ('my_cart', 'cart_pending', 'checkout', 'confirm'):
+            for quantity, rate in ((2, Decimal('.21')), (2, Decimal(0)),
+                    (0, Decimal('.21')), (None, Decimal(0))):
+                with self.subTest(endpoint=endpoint, quantity=quantity, rate=rate):
+                    cart = load_cart()
+                    original = [Line(quantity, rate)] if quantity is not None else []
+                    party = object()
+                    shop = SimpleNamespace(warehouse=1,
+                        currency=SimpleNamespace(digits=2, symbol='EUR'))
+                    sale_model = Mock(side_effect=Sale)
+                    sale_model.default_get.return_value = {}
+                    line_model = Mock()
+                    line_model.search.return_value = original
+                    models = {'sale.sale': sale_model, 'sale.line': line_model,
+                        'sale.shop': Mock(return_value=shop),
+                        'party.party': lambda identifier: party}
+                    cart.tryton.pool.get.side_effect = lambda name: models.get(name, Mock())
+                    form = cart.SaleForm()
+                    cart.current_app = cart._forms.current_app = SimpleNamespace(
+                        config={'TRYTON_SALE_SHOP': 1},
+                        extensions={'Cart': SimpleNamespace(sale_form=lambda: form)})
+                    cart.session = cart._forms.session = {
+                        'sid': 'test', 'customer': 2, 'user': 1}
+                    cart._forms.request = SimpleNamespace(
+                        form={}, endpoint='cart.' + endpoint)
+                    cart.g = SimpleNamespace(language='es')
+                    cart.jsonify = lambda **values: values
+                    cart.render_template = lambda template, **values: values
+                    if endpoint in ('checkout', 'confirm'):
+                        sale = form.get_sale(party=party, lines=original,
+                            step=endpoint)
+                        result = {'lines': sale.lines}
+                    else:
+                        result = getattr(cart, endpoint)('es')
+                    if endpoint == 'my_cart':
+                        items = result['result']['items']
+                        self.assertEqual(len(items), len(original))
+                        if items:
+                            expected = Decimal('10') * (1 + rate)
+                            self.assertEqual(items[0]['unit_price_w_tax'],
+                                float(expected) if quantity else 0)
+                            self.assertEqual(items[0]['amount_w_tax'],
+                                float(expected * quantity))
+                    else:
+                        self.assertEqual(len(result['lines']), len(original))
+                        for line in result['lines']:
+                            if endpoint == 'confirm':
+                                self.assertIsNone(line.sale)
+                                self.assertIsNone(line.amount_w_tax)
+                            else:
+                                self.assertEqual(line.amount_w_tax,
+                                    Decimal('10') * quantity * (1 + rate))
+                    for line in original:
+                        self.assertIsNone(line.sale)
+                        self.assertIsNone(line.amount_w_tax)
+                    line_model.save.assert_not_called()
+                    line_model.write.assert_not_called()
+                    sale_model.save.assert_not_called()
 
 
 if __name__ == '__main__':
