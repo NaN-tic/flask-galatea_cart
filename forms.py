@@ -128,8 +128,26 @@ class SaleForm(Form):
         if extra_lines:
             sale.lines += tuple(extra_lines)
 
+        if request.endpoint != 'cart.confirm':
+            self.update_cart_taxes(sale)
         sale.on_change_lines()
         return sale
+
+    def update_cart_taxes(self, sale):
+        """Compute cart amounts on the in-memory sale, without reading getters."""
+        for line in sale.lines:
+            line.sale = sale
+            line.company = line.on_change_with_company()
+            line.currency = line.on_change_with_currency()
+            line.amount = line.get_amount('amount')
+            # Reading Function fields on saved cart lines would browse them
+            # again, losing the unsaved sale and returning None for taxes.
+            if line.type == 'line' and not line.quantity:
+                line.unit_price_w_tax = Decimal(0)
+                line.amount_w_tax = Decimal(0)
+            else:
+                line.unit_price_w_tax = line.on_change_with_unit_price_w_tax()
+                line.amount_w_tax = line.on_change_with_amount_w_tax()
 
 
 class PartyForm(Form):
