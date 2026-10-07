@@ -1141,8 +1141,7 @@ def cart_list(lang):
     sale.shipment_address = default_shipment_address
     sale.payment_type = default_payment_type
     sale.lines = lines
-    for line in sale.lines:
-        line.sale = sale
+    form_sale.update_cart_taxes(sale)
     lines = sale.lines
     sale.on_change_lines()
 
@@ -1293,6 +1292,13 @@ def cart_pending(lang):
             ]
         ]
     lines = SaleLine.search(domain, offset=0, limit=10)
+
+    if lines:
+        line_ids = {line.id for line in lines}
+        party = Party(session['customer']) if session.get('customer') else None
+        form_sale = current_app.extensions['Cart'].sale_form()
+        sale = form_sale.get_sale(party=party, lines=lines, step='list')
+        lines = [line for line in sale.lines if line.id in line_ids]
 
     breadcrumbs = [{
         'slug': url_for('.cart', lang=g.language),
