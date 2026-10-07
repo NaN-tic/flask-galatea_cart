@@ -1126,6 +1126,26 @@ def cart_list(lang):
     # Payment Types
     payment_types, default_payment_type = shop.get_esale_payments(party)
 
+    form_sale = current_app.extensions['Cart'].sale_form(
+        payment_type=default_payment_type.id if default_payment_type else None)
+
+    # Prepare the sale before computing cart taxes and carrier prices.
+    sale = form_sale.get_sale(party=party, step='list')
+    if session.get('b2b') or hasattr(Party, 'party_sale_payer'):
+        sale.party = party
+        sale.shipment_party = party
+        sale.on_change_shipment_party()
+    if not sale.party:
+        sale.party = party
+    sale.invoice_address = default_invoice_address
+    sale.shipment_address = default_shipment_address
+    sale.payment_type = default_payment_type
+    sale.lines = lines
+    for line in sale.lines:
+        line.sale = sale
+    lines = sale.lines
+    sale.on_change_lines()
+
     # Carriers
     stockable = Carrier.get_products_stockable([l.product.id for l in lines])
     carriers = []
@@ -1135,9 +1155,10 @@ def cart_list(lang):
         tax_amount = Decimal(0)
         total_amount = Decimal(0)
         for line in lines:
+            amount_w_tax = line.amount_w_tax if line.quantity else Decimal(0)
             untaxed_amount += line.amount
-            tax_amount += line.amount_w_tax - line.amount
-            total_amount += line.amount_w_tax
+            tax_amount += amount_w_tax - line.amount
+            total_amount += amount_w_tax
 
         carriers = Sale.get_esale_carriers(
             shop=shop,
@@ -1157,9 +1178,7 @@ def cart_list(lang):
             default_carrier = carriers[0]['carrier']
 
     # Create forms
-    form_sale = current_app.extensions['Cart'].sale_form(
-        payment_type=default_payment_type.id if default_payment_type else None,
-        carrier=default_carrier.id if default_carrier else None)
+    form_sale.carrier.data = default_carrier.id if default_carrier else None
     form_sale.load()
 
     invoice_address_choices = [(a.id, a.full_address) for a in invoice_addresses]
@@ -1203,19 +1222,8 @@ def cart_list(lang):
     if default_carrier:
         form_sale.carrier.default = default_carrier.id
 
-    # Create a demo sale
-    sale = form_sale.get_sale(party=party, step='list')
-    if session.get('b2b') or hasattr(Party, 'party_sale_payer'):
-        sale.party = party
-        sale.shipment_party = party
-        sale.on_change_shipment_party()
-    if not sale.party:
-        sale.party = party
-    sale.invoice_address = default_invoice_address
-    sale.shipment_address = default_shipment_address
     sale.payment_type = default_payment_type
     sale.carrier = default_carrier
-    sale.lines = lines
     sale.on_change_lines()
 
     # Cross Sells
