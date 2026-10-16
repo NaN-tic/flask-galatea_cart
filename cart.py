@@ -96,6 +96,11 @@ def get_galatea_website():
     return current_app.config.get('TRYTON_GALATEA_SITE')
 
 
+def get_invoice_party(party):
+    if party:
+        return getattr(party, 'party_sale_payer', None) or party
+
+
 class Cart(object):
     '''
     This object is used to hold the settings used for sale configuration.
@@ -288,6 +293,7 @@ def confirm(lang):
     invoice_address = invoice_address if invoice_address != 'None' else None
     shipment_address = request.form.get('shipment_address')
     shipment_address = shipment_address if shipment_address != 'None' else None
+    delivery_to_invoice_address = shipment_address == 'invoice-address'
 
     # Lines
     domain = [
@@ -362,7 +368,7 @@ def confirm(lang):
         delivery = False if shipment_address != 'invoice-address' else True
         values = form_invoice_address.get_address(delivery=delivery)
         invoice_address = Address.esale_create_address(
-            shop, party, values, type='invoice')
+            shop, get_invoice_party(party), values, type='invoice')
 
     # Shipment Address
     if request.form.get('shipment_id'):
@@ -410,6 +416,10 @@ def confirm(lang):
                 return redirect(url_for('.cart', lang=g.language))
 
     sale = form_sale.get_sale(party=party, lines=lines, step='confirm')
+    if (delivery_to_invoice_address and shipment_address
+            and sale.shipment_party != shipment_address.party):
+        sale.shipment_party = shipment_address.party
+        sale.on_change_shipment_party()
     if invoice_address:
         sale.invoice_address = invoice_address
     if shipment_address:
@@ -1103,12 +1113,14 @@ def cart_list(lang):
 
         if session.get('customer'):
             party = Party(session['customer'])
+            invoice_party = get_invoice_party(party)
             for address in party.addresses:
                 addresses.append(address)
-                if address.invoice and user.display_invoice_address:
-                    invoice_addresses.append(address)
                 if address.delivery and user.display_shipment_address:
                     shipment_addresses.append(address)
+            for address in invoice_party.addresses:
+                if address.invoice and user.display_invoice_address:
+                    invoice_addresses.append(address)
 
         if user.invoice_address:
             default_invoice_address = user.invoice_address
