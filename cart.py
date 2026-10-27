@@ -88,6 +88,32 @@ def get_session_sid():
     return sid
 
 
+def filter_catalog_products(products, website):
+    products = list(products)
+    user_id = session.get('user')
+    if not products or not user_id:
+        return products
+
+    GalateaUser = tryton.pool.get('galatea.user')
+    Template = tryton.pool.get('product.template')
+    user = GalateaUser(user_id)
+    if not hasattr(user, 'catalog_product_domain'):
+        return products
+
+    domain = GalateaUser.catalog_product_domain(user, session, website)
+    if not domain:
+        return products
+
+    templates = Template.search([
+        ('id', 'in', list({p.template.id for p in products})),
+        ] + domain)
+    template_ids = {template.id for template in templates}
+    return [
+        product for product in products
+        if product.template.id in template_ids
+        ]
+
+
 def get_shop_id():
     return current_app.config.get('TRYTON_SALE_SHOP')
 
@@ -313,6 +339,15 @@ def confirm(lang):
     lines = SaleLine.search(domain)
     if not lines:
         flash(_('There are not products in your cart.'), 'danger')
+        return redirect(url_for('.cart', lang=g.language))
+
+    products = [line.product for line in lines if line.product]
+    allowed_products = {
+        product.id for product in filter_catalog_products(products, website)}
+    if any(line.product and line.product.id not in allowed_products
+            for line in lines):
+        flash(_('Some products in your cart are no longer available.'),
+            'danger')
         return redirect(url_for('.cart', lang=g.language))
 
     # Party
@@ -632,10 +667,15 @@ def add(lang):
         ('template.esale_active', '=', True),
         ('template.shops', 'in', [get_shop_id()]),
         ]
-    if session.get('hidden_products'):
-        domain += [('template.id', 'not in', session.get('hidden_products'))]
     # Get products to add
-    products_by_id = dict((p.id, p) for p in Product.search(domain))
+    products = filter_catalog_products(Product.search(domain), website)
+    products_by_id = dict((p.id, p) for p in products)
+    if request.is_json and values and not products_by_id:
+        return jsonify(result=False, messages={
+            'success': '',
+            'warning': _(
+                'The selected products can not be added to your cart.'),
+            })
 
     # Delete products data
     if removes:
@@ -831,6 +871,15 @@ def checkout(lang):
     lines = SaleLine.search(domain)
     if not lines:
         flash(_('There are not products in your cart.'), 'danger')
+        return redirect(url_for('.cart', lang=g.language))
+
+    products = [line.product for line in lines if line.product]
+    allowed_products = {
+        product.id for product in filter_catalog_products(products, website)}
+    if any(line.product and line.product.id not in allowed_products
+            for line in lines):
+        flash(_('Some products in your cart are no longer available.'),
+            'danger')
         return redirect(url_for('.cart', lang=g.language))
 
     # search user same email request
@@ -1362,12 +1411,16 @@ def clone(lang):
 
     sale, = sales
     shop = sale.shop
+    website = Website(get_galatea_website())
 
     products = set()
     sale_lines = sale.get_esale_lines()
     for l in sale_lines:
         if l.product.active:
             products.add(l.product.id)
+    products = {
+        product.id for product in filter_catalog_products(
+            Product.browse(list(products)), website)}
 
     # Search current carts by user or session
     domain = [
@@ -1546,6 +1599,8 @@ def cart_file(lang):
             domain.append(('code', 'in', codes))
 
         products = Product.search(domain)
+        website = Website(get_galatea_website())
+        products = filter_catalog_products(products, website)
         products_by_code = dict((p.code.upper(), p) for p in products)
         if hasattr(Product, 'customer_code'):
             products_by_code.update(dict((p.customer_code.upper(), p) for p in products if p.customer_code))
